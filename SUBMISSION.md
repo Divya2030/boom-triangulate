@@ -39,3 +39,19 @@ the tool did not report it as one.
 These are planted bugs; they show the method works. We have not yet found a new,
 real bug in BOOM. The loop, its tests, and the planted-bug results are released
 open-source and are designed as reusable CHIA blocks.
+
+## Changes from the funding proposal
+
+Two honest notes for reviewers who saw the proposal:
+
+- **Third model: Dromajo instead of gem5.** The proposal named gem5 as a timing
+  model. Since the comparison is over committed architectural state (as the
+  proposal itself argued, to avoid cycle-equivalence false positives), a second
+  functional reference is a better fit than a timing model: two ISA references
+  give a clean majority vote. We therefore use Spike and Dromajo as the two
+  references. Everything else in the methodology is as proposed.
+
+- **No new organic BOOM bug yet.** The proposal hoped to report genuine defects
+  found in BOOM. Our results are on planted bugs, which show the method works
+  (8/8 recall over observable bugs, 100% precision, zero false alarms). Finding a
+  new real bug in a mature core is future work.
