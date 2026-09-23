@@ -278,14 +278,30 @@ tool did not run'' apart from ``the models disagree.''
 
 \section{Limitations and Future Work}
 \label{sec:limitations}
-The main limit is honest and simple. Single-core bare-metal tests cannot see
-every kind of bug: three of our eleven planted bugs never change committed state
-this way, so no comparison can catch them. Two of them are multi-core memory
-effects that need more than one hart to show up. The vote also has one known
-rough edge: the reference-model mismatch on the exception test is a logging
-habit, and we should normalise it the same way we did for BOOM. Finally, these
-are planted bugs that show the method works; we have not yet found a new,
-real bug in BOOM.
+We are explicit about four limits.
+
+First, single-core bare-metal tests cannot see every kind of bug: three of our
+eleven planted bugs never change committed state this way, so no comparison can
+catch them. Two are multi-core memory effects that need more than one hart.
+
+Second, our results do not isolate the value of aiming tests at specific RTL
+spots. Seven of the eight caught bugs were detected by one broad, mixed program
+rather than by the targeted programs, and because the study stops at the first
+detection, the targeted programs often did not run. So the loop finds these bugs
+by comparing and voting on a datapath-exercising program; whether reading the RTL
+to aim tests actually improves detection is not shown here and needs a controlled
+comparison. The eight observable bugs are also close relatives (bypass and
+forwarding), so the recall number covers a narrow part of the microarchitecture.
+
+Third, the two reference models agreed on all real committed state in this study;
+they differed only on the exception-test logging habit, which is not a real
+disagreement. So the distinctive value of a second reference---breaking a tie, or
+catching a bug in a reference model---is designed in but not yet demonstrated on a
+real case. Here the vote gives confidence (both agree and BOOM is the outlier)
+rather than resolving a genuine three-way split.
+
+Fourth, these are planted bugs that show the method works; we have not yet found
+a new, real bug in BOOM.
 
 \section{Ideas to Extend the Loop}
 Three more steps would make the loop stronger. Each builds on existing work.
