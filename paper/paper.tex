@@ -67,7 +67,9 @@ rule against calling something a BOOM bug when we are not sure.
 \textbf{CHIA}~\cite{chia} is an open framework for AI-driven hardware and
 software co-design flows. It already supports many tools, including
 Chipyard, Spike~\cite{spike}, Verilator~\cite{verilator}, and gem5~\cite{gem5}.
-\textbf{BOOM}~\cite{boom} is an out-of-order RISC-V~\cite{riscv} core. A
+\textbf{BOOM}~\cite{boom} is an out-of-order RISC-V~\cite{riscv} core; we test
+its third generation, SonicBOOM~\cite{sonicboom}, which is written in the Chisel
+hardware language~\cite{chisel}. A
 \textbf{reference model} runs instructions one at a time and computes the
 correct result directly. An out-of-order core does the same work in a more
 complex way, with renaming, guessing ahead, queues, and forwarding. Those are
@@ -92,7 +94,10 @@ difference means} as the main problem, not finding the difference. This matters:
 ProcessorFuzz found a bug in a reference model itself, which shows a difference
 is not always a bug in the design. The classic idea of comparing two
 implementations of the same rules comes from compiler testing, such as
-Csmith~\cite{csmith}.
+Csmith~\cite{csmith}. Separately, large language models are now used to write
+and check hardware: ChipNeMo~\cite{chipnemo} adapts a model to chip-design tasks,
+and VerilogEval~\cite{verilogeval} benchmarks LLMs on Verilog generation. Our
+work uses a model to choose and write tests, not to write the design.
 
 \section{How the Loop Works}
 The loop has four parts. Each is a separate CHIA block.
