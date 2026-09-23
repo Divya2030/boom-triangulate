@@ -255,8 +255,9 @@
             <text x="260" y="281" fill="var(--ink-2)">A ≠ B  →  oracle mismatch</text>
           </g>
         </svg>
-        <p class="diagcap">Two references turn “which side is wrong?” into a mechanical vote — over
-        committed state only.</p>
+        <p class="diagcap">Two references turn “which side is wrong?” into a mechanical vote (committed
+        state only). <b style="color:var(--ink)">Demonstrated both ways:</b> a seeded RTL bug → BOOM is the
+        outlier; a seeded Spike bug → the vote pinpoints Spike. A single golden model cannot do the second.</p>
       </div>
 
       <div class="card">
@@ -306,8 +307,8 @@ vote    : oracles agree · BOOM outlier → RTL_DEFECT</div>
         <ul>
           <li>Planted bugs prove the method; <b>no new organic BOOM bug</b> found.</li>
           <li>Single-core bare-metal can't reach SimFuzz-class discovery.</li>
-          <li>Two references agreed on all real state — oracle-bug case is <b>designed-in, not yet shown</b>.</li>
-          <li>A documented bug (misaligned load) <b>didn't reproduce</b>; the loop correctly kept BOOM clear.</li>
+          <li>No <b>natural</b> reference-model bug seen; we demonstrate detection with a <b>seeded</b> one.</li>
+          <li>A documented BOOM bug (misaligned load) <b>didn't reproduce</b>; the loop kept BOOM clear.</li>
         </ul>
       </div>
 
