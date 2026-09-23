@@ -85,12 +85,16 @@ testing. TheHuzz~\cite{thehuzz} fuzzes at the instruction level against a golden
 model. ProcessorFuzz~\cite{processorfuzz} guides the search using changes in
 control and status registers and tests Rocket, BOOM, and BlackParrot.
 Cascade~\cite{cascade} writes long, tangled programs that stop running when they
-hit a bug. Constrained-random generators like riscv-dv~\cite{riscvdv} also make
-legal test programs. All of these focus on \emph{making test inputs and
-measuring coverage}. Our loop is different in two ways. First, it chooses where
-to test by reading the RTL and pointing tests at named spots, not by mutating
-random inputs. Second, and more important, we treat \emph{deciding what a
-difference means} as the main problem, not finding the difference. This matters:
+hit a bug. Most recently, SimFuzz~\cite{simfuzz} uses similarity-guided mutation
+and differential testing to find 14 previously unknown bugs (7 CVEs) in Rocket,
+BOOM, and XiangShan. Constrained-random generators like riscv-dv~\cite{riscvdv}
+also make legal test programs. These fuzzers are strong at \emph{finding} bugs: they run enormous numbers of
+inputs and, like SimFuzz, discover real, previously unknown bugs. We do not
+compete on raw discovery or throughput. Instead we focus on a different, less
+studied question: once a difference appears, \emph{deciding what it means}---a
+BOOM bug, a reference-model bug, an allowed difference, or an artifact. To that
+end we read the RTL to aim tests and, more importantly, use two reference models
+to classify each difference by a mechanical vote. This matters:
 ProcessorFuzz found a bug in a reference model itself, which shows a difference
 is not always a bug in the design. The classic idea of comparing two
 implementations of the same rules comes from compiler testing, such as
