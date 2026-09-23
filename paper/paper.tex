@@ -38,8 +38,9 @@ reference model, a difference the rules allow, or a problem with the test setup.
 We use two reference models, Spike and Dromajo, not one. With two, the tool can
 often decide by majority vote instead of guessing. To measure how well it works,
 we planted known bugs in BOOM's source and checked how many the tool finds. It
-found every planted bug that changes what the CPU commits, and it never reported
-a bug on the clean version. We are clear about what we built and what already
+found every planted bug that changes what the CPU commits, never reported a bug
+on the clean version, and---when we seeded a bug into one reference model---the
+vote pinpointed the faulty model, which a single-reference flow cannot do. We are clear about what we built and what already
 existed in the Berkeley tools.
 \end{abstract}
 
@@ -284,11 +285,22 @@ tool did not run'' apart from ``the models disagree.''
 bugs, we pointed the loop at a documented BOOM issue (a report that misaligned
 loads could return corrupted data instead of trapping). On our build the bug does
 not reproduce: BOOM traps the misaligned load and \emph{agrees with Spike}. The
-loop did not blame BOOM. Instead it flagged an \cls{oracle\_mismatch}, because
-Spike traps misaligned loads while Dromajo permits them---a real policy
-difference between the two references, not a design bug. This is the
-classification working on real input: the loop kept BOOM clear and pointed at the
-right source of the difference.
+loop did not blame BOOM. It named the outlier reference instead: BOOM and Spike
+trap, while Dromajo permits misaligned loads, so the vote returns
+\cls{model\_defect} pointing at Dromajo. This is a policy difference between the
+references (misaligned support), not necessarily a Dromajo bug---but the loop
+correctly kept BOOM clear and identified the source of the difference.
+
+\textbf{Finding 5: catching a bug in a reference model.} To test the two-oracle
+capability directly, we seeded a bug into Spike itself---\code{MUL} off by
+one---and ran a multiply test. BOOM and Dromajo agree on the correct product;
+buggy Spike is the sole outlier. The vote returns \cls{model\_defect} and names
+\emph{Spike}, correctly identifying which reference model is wrong. With a correct
+Spike the same test is \cls{clean}. A single-golden-model flow cannot make this
+call: it would see a mismatch and could not tell whether the CPU or the reference
+was at fault. This is the concrete payoff of a second reference---and, since
+reference models do carry real bugs (ProcessorFuzz found one), a capability that
+matters in practice.
 
 \section{Limitations and Future Work}
 \label{sec:limitations}
@@ -307,12 +319,11 @@ to aim tests actually improves detection is not shown here and needs a controlle
 comparison. The eight observable bugs are also close relatives (bypass and
 forwarding), so the recall number covers a narrow part of the microarchitecture.
 
-Third, the two reference models agreed on all real committed state in this study;
-they differed only on the exception-test logging habit, which is not a real
-disagreement. So the distinctive value of a second reference---breaking a tie, or
-catching a bug in a reference model---is designed in but not yet demonstrated on a
-real case. Here the vote gives confidence (both agree and BOOM is the outlier)
-rather than resolving a genuine three-way split.
+Third, we have not seen a reference model fail on its own in the wild: on real
+programs the two references agreed on all committed state except a misaligned-load
+policy difference (Finding 4). We therefore demonstrate the tie-breaking
+capability with a \emph{seeded} reference-model bug (Finding 5), not a naturally
+occurring one; finding a real reference-model bug is future work.
 
 Fourth, these are planted bugs that show the method works; we have not yet found
 a new, real bug in BOOM.
