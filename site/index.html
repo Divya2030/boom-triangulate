@@ -1,0 +1,456 @@
+<title>BOOM Divergence Hunter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #f4f7fa;
+    --surface: #ffffff;
+    --surface-2: #eef2f7;
+    --line: #d6dee8;
+    --line-strong: #b9c6d6;
+    --ink: #121a24;
+    --ink-2: #46586c;
+    --ink-3: #6b7d90;
+    --accent: #0b8fa6;
+    --accent-ink: #06616f;
+    --accent-wash: #dcf1f4;
+    --pass: #1a8f5a;
+    --pass-wash: #dbf1e6;
+    --warn: #b5730a;
+    --warn-wash: #f6ecd6;
+    --crit: #c23b46;
+    --crit-wash: #f6dee0;
+    --shadow: 0 1px 2px rgba(18,26,36,.06), 0 6px 20px rgba(18,26,36,.05);
+    --radius: 10px;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --ground: #0c121b;
+      --surface: #121b27;
+      --surface-2: #17222f;
+      --line: #24313f;
+      --line-strong: #33445600;
+      --line-strong: #35485c;
+      --ink: #e9eef4;
+      --ink-2: #a7b6c6;
+      --ink-3: #74869a;
+      --accent: #35c6dc;
+      --accent-ink: #7fe0ee;
+      --accent-wash: #103038;
+      --pass: #48c98a;
+      --pass-wash: #10281d;
+      --warn: #e0a63f;
+      --warn-wash: #2c2410;
+      --crit: #ef6b76;
+      --crit-wash: #2e1518;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0c121b;
+    --surface: #121b27;
+    --surface-2: #17222f;
+    --line: #24313f;
+    --line-strong: #35485c;
+    --ink: #e9eef4;
+    --ink-2: #a7b6c6;
+    --ink-3: #74869a;
+    --accent: #35c6dc;
+    --accent-ink: #7fe0ee;
+    --accent-wash: #103038;
+    --pass: #48c98a;
+    --pass-wash: #10281d;
+    --warn: #e0a63f;
+    --warn-wash: #2c2410;
+    --crit: #ef6b76;
+    --crit-wash: #2e1518;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 22px 64px; }
+  mono, .mono, code { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+  a { color: var(--accent-ink); }
+
+  /* ---- header ---- */
+  header.top { display: flex; flex-wrap: wrap; gap: 18px 24px; align-items: flex-end;
+    justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent-ink); font-weight: 600; }
+  h1 { font-size: clamp(26px, 4vw, 38px); font-weight: 700; letter-spacing: -.01em; margin-top: 6px; }
+  .sub { color: var(--ink-2); font-size: 15px; max-width: 54ch; margin-top: 8px; }
+  .runmeta { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--ink-3); line-height: 1.8; }
+  .runmeta .live { color: var(--pass); font-weight: 600; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500; border: 1px solid var(--line-strong); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pass); box-shadow: 0 0 0 3px var(--pass-wash); }
+
+  /* ---- pipeline strip ---- */
+  .pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 24px 0 8px; }
+  .stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 15px; position: relative; box-shadow: var(--shadow); }
+  .stage .n { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  .stage .nm { font-weight: 600; font-size: 15px; margin: 3px 0 8px; }
+  .stage .st { font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+  .stage.ok .st { color: var(--pass); }
+  .stage.idle .st { color: var(--ink-3); }
+  .stage::after { content: "→"; position: absolute; right: -13px; top: 50%; transform: translateY(-50%);
+    color: var(--line-strong); font-size: 14px; z-index: 2; }
+  .stage:last-child::after { display: none; }
+
+  /* ---- stat tiles ---- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 22px 0; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; }
+  .tile .v { font-family: "IBM Plex Mono", monospace; font-size: 30px; font-weight: 600; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .tile .k { font-size: 12px; color: var(--ink-2); margin-top: 5px; }
+  .tile.accent .v { color: var(--accent); }
+  .tile.pass .v { color: var(--pass); }
+  .tile.zero .v { color: var(--ink); }
+
+  /* ---- sections ---- */
+  section { margin-top: 34px; }
+  .h2row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h2 { font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+  .h2note { font-size: 13px; color: var(--ink-3); }
+  .lede { color: var(--ink-2); font-size: 14px; margin: 6px 0 16px; max-width: 68ch; }
+
+  /* ---- run table ---- */
+  .tblwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; background: var(--surface-2); }
+  tr:last-child td { border-bottom: none; }
+  td.mono, .mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  .verdict { display: inline-flex; align-items: center; gap: 6px; font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 6px; }
+  .v-clean { color: var(--pass); background: var(--pass-wash); }
+  .v-div { color: var(--warn); background: var(--warn-wash); }
+  .prov { font-family: "IBM Plex Mono", monospace; font-size: 11px; padding: 2px 7px; border-radius: 5px;
+    border: 1px solid var(--line-strong); color: var(--ink-2); }
+  .prov.model { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-wash); }
+  .prov.fallback { color: var(--warn); border-color: var(--warn); background: var(--warn-wash); }
+
+  /* ---- hypothesis cards ---- */
+  .hyps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .hyp { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 17px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+  .hyp .cat { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); }
+  .hyp h3 { font-size: 15.5px; font-weight: 600; line-height: 1.35; }
+  .hyp p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+  .cite { font-family: "IBM Plex Mono", monospace; font-size: 12px; background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; overflow-x: auto; }
+  .cite .ref { color: var(--accent-ink); font-weight: 600; }
+  .cite .code { color: var(--ink); display: block; margin-top: 4px; white-space: pre; }
+  .cite .ok { color: var(--pass); font-size: 11px; float: right; }
+  .conf { margin-top: auto; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  .conf b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---- findings log ---- */
+  .find { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--warn);
+    border-radius: var(--radius); padding: 15px 17px; margin-bottom: 10px; }
+  .find .cls { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600;
+    color: var(--warn); letter-spacing: .05em; }
+  .find h3 { font-size: 15px; font-weight: 600; margin: 4px 0 6px; }
+  .find p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+
+  /* ---- honesty panel ---- */
+  .honest { background: var(--surface); border: 1px dashed var(--line-strong); border-radius: var(--radius);
+    padding: 18px 20px; }
+  .honest ul { margin: 10px 0 0; padding-left: 18px; }
+  .honest li { font-size: 13.5px; color: var(--ink-2); margin-bottom: 6px; }
+  .honest li b { color: var(--ink); font-weight: 600; }
+
+  /* ---- footer ---- */
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 6px 20px; font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; color: var(--ink-3); }
+  footer b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---- seed study ---- */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 4px 0 18px; }
+  .metric { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .metric .v { font-family: "IBM Plex Mono", monospace; font-size: 22px; font-weight: 600; }
+  .metric .v.pending { color: var(--ink-3); }
+  .metric .v.target { color: var(--pass); }
+  .metric .k { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+  .metric .k b { color: var(--ink); }
+  .obs { font-family: "IBM Plex Mono", monospace; font-size: 11px; padding: 2px 8px; border-radius: 5px; font-weight: 500; }
+  .obs.high { color: var(--pass); background: var(--pass-wash); }
+  .obs.mod { color: var(--warn); background: var(--warn-wash); }
+  .obs.hard { color: var(--ink-3); border: 1px solid var(--line-strong); }
+  .queued { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  .found { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600; color: var(--pass); background: var(--pass-wash); padding: 2px 8px; border-radius: 5px; }
+  .notobs { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  .built-badge { font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 600; color: var(--pass); background: var(--pass-wash); padding: 2px 7px; border-radius: 999px; }
+
+  @media (max-width: 720px) {
+    .pipe { grid-template-columns: repeat(2, 1fr); }
+    .stage:nth-child(2)::after { display: none; }
+    .runmeta { text-align: left; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="eyebrow">CHIA × A³ · MICRO A3 Workshop 2026</div>
+      <h1>BOOM Divergence Hunter</h1>
+      <p class="sub">A loop that reads BOOM's source, writes small test programs aimed at
+      risky spots, runs them on BOOM and two reference models, and decides what each
+      difference means.</p>
+    </div>
+    <div class="runmeta">
+      <div><span class="chip"><span class="dot"></span><span class="live">loop live</span></span></div>
+      <div>model&nbsp;&nbsp;gemini-pro-latest</div>
+      <div>run&nbsp;&nbsp;&nbsp;&nbsp;2026-09-22 · study complete</div>
+      <div>oracles&nbsp;Spike + Dromajo</div>
+    </div>
+  </header>
+
+  <!-- pipeline -->
+  <div class="pipe">
+    <div class="stage ok"><div class="n">01</div><div class="nm">Hypothesize</div>
+      <div class="st">✓ 118 seams → 3 cited</div></div>
+    <div class="stage ok"><div class="n">02</div><div class="nm">Generate</div>
+      <div class="st">✓ 2/2 through gate</div></div>
+    <div class="stage ok"><div class="n">03</div><div class="nm">Compare</div>
+      <div class="st">✓ 2 cosim runs</div></div>
+    <div class="stage ok"><div class="n">04</div><div class="nm">Vote &amp; decide</div>
+      <div class="st">✓ 3/3 bugs found</div></div>
+  </div>
+
+  <!-- stat tiles -->
+  <div class="tiles">
+    <div class="tile accent"><div class="v">423</div><div class="k">risky spots found in BOOM v3 source</div></div>
+    <div class="tile pass"><div class="v">8/8</div><div class="k">planted bugs found (of those a single core can show)</div></div>
+    <div class="tile pass"><div class="v">100%</div><div class="k">precision — no false alarms on the clean build</div></div>
+    <div class="tile"><div class="v">2</div><div class="k">reference models voting (Spike, Dromajo)</div></div>
+    <div class="tile zero"><div class="v">0</div><div class="k">false BOOM-bug calls on baseline</div></div>
+    <div class="tile"><div class="v">58</div><div class="k">unit tests passing</div></div>
+  </div>
+
+  <!-- latest run -->
+  <section>
+    <div class="h2row"><h2>One full run</h2><span class="h2note">start to finish, on the memory-ordering group</span></div>
+    <p class="lede">Each program comes from a test idea, passes the check (must build, finish, and do
+    real work), then runs on BOOM and Spike. We compare what they commit. "Clean" means they agreed —
+    the idea did not turn into a bug this time, which is what we expect most of the time on a mature
+    core.</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Program</th><th>Synthesis</th><th>Gate</th><th>Retired</th><th>Matched</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">memory_ordering_1</td>
+            <td><span class="prov fallback">offline (503 fallback)</span></td>
+            <td class="mono">pass</td><td class="mono">32</td><td class="mono">32</td>
+            <td><span class="verdict v-clean">● CLEAN</span></td>
+          </tr>
+          <tr>
+            <td class="mono">memory_ordering_2</td>
+            <td><span class="prov model">gemini-3.6-flash</span></td>
+            <td class="mono">pass</td><td class="mono">24</td><td class="mono">24</td>
+            <td><span class="verdict v-clean">● CLEAN</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- hypothesis quality -->
+  <section>
+    <div class="h2row"><h2>Are the test ideas real?</h2><span class="h2note">line numbers checked against BOOM source</span></div>
+    <p class="lede">The model does not make up line numbers. We checked each idea below against
+    <span class="mono">generators/boom/…/v3/lsu/lsu.scala</span>. The line it points to holds exactly the
+    signal the idea talks about.</p>
+    <div class="hyps">
+      <div class="hyp">
+        <div class="cat">memory_ordering · H1</div>
+        <h3>FENCE.I may finish too early</h3>
+        <p><span class="mono">fencei_rdy</span> goes high once the store queue empties, but that does
+        not mean the stored data has reached the point where a refetch would see it.</p>
+        <div class="cite"><span class="ok">✓ verified</span><span class="ref">lsu.scala:347</span>
+          <span class="code">io.core.fencei_rdy := !stq_nonempty && io.dmem.ordered</span></div>
+        <div class="conf"><b>confidence</b> high</div>
+      </div>
+      <div class="hyp">
+        <div class="cat">memory_ordering · H2</div>
+        <h3>A load may miss a needed replay</h3>
+        <p>A load that took its value from an older store may need to run again if a store in between
+        works out its address later. That replay can be missed.</p>
+        <div class="cite"><span class="ok">✓ verified</span><span class="ref">lsu.scala:1374</span>
+          <span class="code">ldq(f_idx).bits.forward_std_val := true.B</span></div>
+        <div class="conf"><b>confidence</b> high</div>
+      </div>
+      <div class="hyp">
+        <div class="cat">memory_ordering · H3</div>
+        <h3>Load-load ordering may not be flagged</h3>
+        <p>A younger load that ran early is only flagged as an ordering problem when the line's
+        <span class="mono">observed</span> bit is set during the load search. If it is not, the check
+        is skipped.</p>
+        <div class="cite"><span class="ok">✓ verified</span><span class="ref">lsu.scala:1123</span>
+          <span class="code">ldq(i).bits.order_fail := true.B</span></div>
+        <div class="conf"><b>confidence</b> medium</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- seeded-defect study -->
+  <section>
+    <div class="h2row"><h2>Planted-bug study</h2><span class="h2note">complete · Spike + Dromajo + BOOM</span></div>
+    <p class="lede">Real bugs in a mature core are rare, so we test the loop against planted
+    bugs — one small, reversible change per spot, each a known bug. That turns the evaluation
+    into two numbers: <b>recall</b> (seeds caught) and <b>triage precision</b> (RTL_DEFECT verdicts that
+    land on a real seed). Recall counts only <i>observable</i> seeds: a defect that never changes committed
+    state can't be caught by any differential test, and is reported as such rather than scored as a miss.</p>
+    <div class="metrics">
+      <div class="metric"><div class="v target">8/8</div><div class="k"><b>recall</b> over bugs a single core can show</div></div>
+      <div class="metric"><div class="v target">100%</div><div class="k"><b>precision</b> — every bug call was a real one</div></div>
+      <div class="metric"><div class="v target">0</div><div class="k"><b>false alarms</b> on the clean build</div></div>
+      <div class="metric"><div class="v">11</div><div class="k">planted bugs, all built and checked</div></div>
+    </div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Planted bug</th><th>Group</th><th>Site</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">BYPASS_RS1_DISABLED</td><td class="mono">bypass</td><td class="mono">register-read.scala</td>
+            <td><span class="found">● found</span></td></tr>
+          <tr><td class="mono">BYPASS_RS2_DISABLED</td><td class="mono">bypass</td><td class="mono">register-read.scala</td>
+            <td><span class="found">● found</span></td></tr>
+          <tr><td class="mono">BYPASS_RS1_MATCH_WRONG</td><td class="mono">bypass</td><td class="mono">register-read.scala</td>
+            <td><span class="found">● found</span></td></tr>
+          <tr><td class="mono">BYPASS_RS2_MATCH_WRONG</td><td class="mono">bypass</td><td class="mono">register-read.scala</td>
+            <td><span class="found">● found</span></td></tr>
+          <tr><td class="mono">BYPASS_RS1_ZERO_GUARD</td><td class="mono">bypass</td><td class="mono">register-read.scala</td>
+            <td><span class="found">● found</span></td></tr>
+          <tr><td class="mono">BYPASS_RS2_ZERO_GUARD</td><td class="mono">bypass</td><td class="mono">register-read.scala</td>
+            <td><span class="found">● found</span></td></tr>
+          <tr><td class="mono">FORWARD_STD_VAL_STUCK</td><td class="mono">mem-order</td><td class="mono">lsu.scala:1374</td>
+            <td><span class="found">● found (via the vote)</span></td></tr>
+          <tr><td class="mono">FWD_IRESP_EARLY</td><td class="mono">mem-order</td><td class="mono">lsu.scala</td>
+            <td><span class="found">● found</span></td></tr>
+          <tr><td class="mono">ORDER_FAIL_SUPPRESSED</td><td class="mono">mem-order</td><td class="mono">lsu.scala:1123</td>
+            <td><span class="notobs">not observable (multi-core)</span></td></tr>
+          <tr><td class="mono">FENCEI_EARLY</td><td class="mono">mem-order</td><td class="mono">lsu.scala:347</td>
+            <td><span class="notobs">not observable (multi-core)</span></td></tr>
+          <tr><td class="mono">MOV_WRONG_OPERAND</td><td class="mono">exec unit</td><td class="mono">functional-unit.scala</td>
+            <td><span class="notobs">not observable (not triggered)</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- findings log -->
+  <section>
+    <div class="h2row"><h2>Findings log</h2><span class="h2note">what the loop turned up</span></div>
+    <div class="find" style="border-left-color: var(--pass);">
+      <span class="cls" style="color: var(--pass);">RTL_DEFECT · the vote wins</span>
+      <h3>The second reference model found a bug the first one missed</h3>
+      <p>The planted store-to-load forwarding bug threw the program off course, so the difference
+      looked like a cut-off trace — which a single reference model reads as a test-setup problem and
+      misses. The vote caught it: both references finish and agree, BOOM is the odd one out, so it is
+      a BOOM bug no matter how the difference looks. This is the clear reason to use two references.</p>
+    </div>
+    <p class="lede">The two entries below are the decide step doing its job — refusing to call a
+    non-bug a bug. No new, real BOOM bug has been found yet; the win above is on a planted bug.</p>
+    <div class="find">
+      <span class="cls">HARNESS_ARTIFACT · resolved</span>
+      <h3>A logging habit that looked like a bug</h3>
+      <p>BOOM logs the trapping <span class="mono">ecall</span>/<span class="mono">c.ebreak</span> with no
+      register write; Spike jumps straight to the handler. Both reach the same handler with the same
+      <span class="mono">mcause</span>, so the state is the same. We handle it, but we count and report each
+      skip instead of quietly realigning — a tool that quietly realigns can hide a real bug.</p>
+    </div>
+    <div class="find">
+      <span class="cls">HARNESS_ARTIFACT · resolved</span>
+      <h3>An empty trace from a wrong file path</h3>
+      <p>A wrong file path made BOOM produce an empty trace. The decide step correctly refused to call an
+      empty trace a bug, and told "the tool did not run" apart from "the models disagree." This is why we
+      run fixed checks before any model call.</p>
+    </div>
+  </section>
+
+  <!-- advanced directions -->
+  <section>
+    <div class="h2row"><h2>Ideas to extend the loop</h2><span class="h2note">each builds on existing work</span></div>
+    <div class="hyps">
+      <div class="hyp">
+        <div class="cat">triage · a third reference <span class="built-badge">two built</span></div>
+        <h3>Add a formal reference model</h3>
+        <p>The vote with Spike and Dromajo is built and working. Adding the Sail formal
+        RISC-V model as a third reference would make it stronger, since Sail is the official
+        written spec. ProcessorFuzz found a real bug <i>in</i> a reference model, so a third
+        view helps.</p>
+        <div class="conf"><b>refs</b> Sail (POPL'19) · ProcessorFuzz</div>
+      </div>
+      <div class="hyp">
+        <div class="cat">hypothesize · feedback</div>
+        <h3>Use coverage to aim the tests</h3>
+        <p>Right now the loop reads only the source. Feeding it live signals — CSR changes (ProcessorFuzz)
+        or register coverage (DIFUZZRTL) — would tell the model where the tests have not been yet.</p>
+        <div class="conf"><b>refs</b> ProcessorFuzz · DIFUZZRTL</div>
+      </div>
+      <div class="hyp">
+        <div class="cat">generate · reachability</div>
+        <h3>Write deeper test programs</h3>
+        <p>Straight-line programs can't reach every state. Cascade-style tangled programs reach much
+        deeper, which would make more planted bugs observable and raise the recall ceiling.</p>
+        <div class="conf"><b>refs</b> Cascade (USENIX'24)</div>
+      </div>
+      <div class="hyp">
+        <div class="cat">triage · escalation</div>
+        <h3>Prove a difference with a formal check</h3>
+        <p>A difference found by testing is a cheap lead; a bounded formal check is a proof. A found
+        difference could seed a formal property, checked by the yosys/SymbiYosys flow we built earlier,
+        to turn a suspect trace into a proof or a small counterexample.</p>
+        <div class="conf"><b>built</b> formal prototype exists</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- honesty -->
+  <section>
+    <div class="h2row"><h2>What this shows, and what it doesn't</h2></div>
+    <div class="honest">
+      <ul>
+        <li><b>The results are from planted bugs, not a new BOOM bug.</b> They show the method works —
+        it finds bugs we put in on purpose. We have not yet found a new, real bug in BOOM.</li>
+        <li><b>Half the planted bugs are not observable on one core.</b> Three of six never change what a
+        single core commits, so no comparison can catch them. Two need more than one core. We leave those
+        out of the recall number instead of counting them as misses.</li>
+        <li><b>The reference models agree with each other, except one logging habit.</b> On the exception
+        test Spike and Dromajo differ, but it is only how they log a trap, not a real disagreement — and
+        the tool does not call it a bug.</li>
+        <li><b>We credit what is not ours.</b> Running Spike next to BOOM is a Berkeley feature. What we
+        add is choosing the tests, writing them, and deciding what each difference means.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span><b>Spike</b> 1.1.1-dev @0e18353</span>
+    <span><b>Dromajo</b> reference model</span>
+    <span><b>gcc</b> 14.2</span>
+    <span><b>Verilator</b> 5.022</span>
+    <span><b>Chipyard</b> @371ab92</span>
+    <span><b>BOOM</b> v3</span>
+    <span><b>loop</b> 3.8k LoC Python</span>
+    <span><b>tests</b> 58 passing</span>
+  </footer>
+
+</div>

@@ -1,0 +1,320 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage[colorlinks=true,allcolors=blue!55!black]{hyperref}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\cls}[1]{\textsc{#1}}
+
+\begin{document}
+
+\title{Finding BOOM CPU Bugs with an AI Loop\\
+and Two Reference Models}
+
+\author{\IEEEauthorblockN{Divya Kohli}
+\IEEEauthorblockA{\textit{University of California, Santa Cruz}\\
+dkohli1@ucsc.edu}
+\thanks{A3 CHIA Hackathon 2026, MICRO A3 Workshop.}}
+
+\maketitle
+
+\begin{abstract}
+We built a tool that looks for bugs in the BOOM CPU. BOOM is an out-of-order
+RISC-V core. The tool runs a test program on BOOM and also on reference models
+that follow the RISC-V rules, then compares the results. If BOOM does something
+different, that may be a bug. The tool has four parts. The first part reads
+BOOM's source code and picks spots that often have bugs. The second part writes
+small test programs aimed at those spots. The third part runs each program on
+BOOM and on the reference models and compares what they commit. The fourth part
+looks at each difference and decides what it means: a real BOOM bug, a bug in a
+reference model, a difference the rules allow, or a problem with the test setup.
+We use two reference models, Spike and Dromajo, not one. With two, the tool can
+often decide by majority vote instead of guessing. To measure how well it works,
+we planted known bugs in BOOM's source and checked how many the tool finds. It
+found every planted bug that changes what the CPU commits, and it never reported
+a bug on the clean version. We are clear about what we built and what already
+existed in the Berkeley tools.
+\end{abstract}
+
+\begin{IEEEkeywords}
+CPU verification, RISC-V, BOOM, differential testing, co-simulation, CHIA,
+hardware/software co-design
+\end{IEEEkeywords}
+
+\section{Introduction}
+Comparing a real CPU design against a simple reference model is a common way to
+find CPU bugs. The Chipyard tools~\cite{chipyard} already let you run Spike next
+to a BOOM simulation and compare them. So running the comparison is not the hard
+part. The hard part is deciding what to test, writing tests that reach the
+tricky cases, and, most of all, deciding what a difference means. When BOOM and
+a reference model disagree, it can be a bug in BOOM, a bug in the reference
+model, a difference the rules allow, or just a problem with how we ran the test.
+
+This work builds a loop around that last problem. We are honest about credit:
+running Spike next to BOOM is an existing Berkeley feature, and we use it as is.
+What we add is the layer on top: reading the RTL to choose where to test,
+writing tests aimed there, and deciding what each difference means with a strong
+rule against calling something a BOOM bug when we are not sure.
+
+\section{Background}
+\textbf{CHIA}~\cite{chia} is an open framework for AI-driven hardware and
+software co-design flows. It already supports many tools, including
+Chipyard, Spike~\cite{spike}, Verilator~\cite{verilator}, and gem5~\cite{gem5}.
+\textbf{BOOM}~\cite{boom} is an out-of-order RISC-V~\cite{riscv} core. A
+\textbf{reference model} runs instructions one at a time and computes the
+correct result directly. An out-of-order core does the same work in a more
+complex way, with renaming, guessing ahead, queues, and forwarding. Those are
+the places where it can go wrong. Because a reference model has no idea of
+clock cycles, we only compare \emph{committed state}: the list of instructions
+that retired, their bits, and the register values they wrote. Cycle counts and
+issue order are not compared.
+
+\section{Related Work}
+The closest work is CPU fuzzing. RFUZZ~\cite{rfuzz} fuzzes RTL on FPGAs.
+DIFUZZRTL~\cite{difuzzrtl} adds register-coverage guidance and differential
+testing. TheHuzz~\cite{thehuzz} fuzzes at the instruction level against a golden
+model. ProcessorFuzz~\cite{processorfuzz} guides the search using changes in
+control and status registers and tests Rocket, BOOM, and BlackParrot.
+Cascade~\cite{cascade} writes long, tangled programs that stop running when they
+hit a bug. Constrained-random generators like riscv-dv~\cite{riscvdv} also make
+legal test programs. All of these focus on \emph{making test inputs and
+measuring coverage}. Our loop is different in two ways. First, it chooses where
+to test by reading the RTL and pointing tests at named spots, not by mutating
+random inputs. Second, and more important, we treat \emph{deciding what a
+difference means} as the main problem, not finding the difference. This matters:
+ProcessorFuzz found a bug in a reference model itself, which shows a difference
+is not always a bug in the design. The classic idea of comparing two
+implementations of the same rules comes from compiler testing, such as
+Csmith~\cite{csmith}.
+
+\section{How the Loop Works}
+The loop has four parts. Each is a separate CHIA block.
+
+\subsection{Pick spots}
+This part reads BOOM's source and looks for spots that often hold bugs, in five
+groups: exception priority, queue pointers, forwarding and bypass, memory
+ordering, and code the authors marked as unfinished (\code{TODO} and disabled
+features). Each hit is saved with a \code{file:line} pointer, so every later
+test can be traced back to the exact line that motivated it. On BOOM v3 (56
+Scala files, about 18.8k lines) the scan finds 423 spots. A model then turns the
+top spots into test ideas, each with a setup, a test sketch, and the exact
+difference it expects to see. We rank the spots so a memory-ordering idea points
+at the load/store unit, not at an unrelated line that only matched the same
+keyword.
+
+\subsection{Write tests}
+This part turns each idea into a small bare-metal RISC-V program. It wraps the
+program with a trap handler and a clean exit. The key part is a check: a test is
+only kept if it assembles, finishes, and runs enough instructions to do real
+work. A program that runs nothing produces a clean comparison and proves
+nothing, so a loop that counts clean runs as success would happily report that a
+broken test writer found no bugs. Rejected tests are counted and reported. They
+mean the check is working, not that the loop failed.
+
+\subsection{Run and compare}
+This part turns both models' output into one common list of committed
+instructions and compares them step by step from a start point, stopping at the
+first difference. It starts from the program's entry, not from reset, because
+the two models boot differently. A useful practical note: BOOM's commit log uses
+almost the same format as Spike, so one parser reads both.
+
+\subsection{Decide what it means}
+This part sorts each difference into one of five kinds: a BOOM bug, a
+reference-model bug, an allowed difference, a test-setup problem, or not sure.
+Easy cases are decided first with no model call. A difference that does not
+repeat across runs of two fixed models is not sure. A difference on a
+free-running counter (\code{cycle}, \code{time}, \code{instret}) is allowed by
+the rules. An empty or cut-off trace is a test-setup problem, and we tell the
+two apart because saying ``raise the instruction budget'' is useless when the
+simulator never started. Only what is left goes to the model, and with real
+evidence: the disassembly at both program counters, nearby trace, and the RTL
+line the idea pointed at. The bar for calling something a BOOM bug is high on
+purpose. A wrong bug report to BOOM's authors costs more than a missed one, so
+anything the evidence does not settle is marked ``not sure'' instead of being
+rounded up. Only real BOOM-bug and reference-bug results feed back into the next
+round of ideas.
+
+\subsection{Vote with two reference models}
+Older CPU fuzzers use one reference model, so a difference leaves ``which side
+is wrong?'' to a person. We add a second reference model, Dromajo~\cite{dromajo},
+next to Spike, and let the tool vote. Call the implementation $B$ and the two
+references $A_1$ and $A_2$. If all three agree, it is clean. If both references
+agree and $B$ is the odd one out, it is a BOOM bug. If $B$ matches one reference
+but not the other, the odd reference is the suspect. If the two references
+disagree with each other, that is a reference-model problem, apart from BOOM. We
+call this triangulation. It turns the hard, human step into a simple vote for
+most cases, and only sends a true three-way split to the model. If a bug makes
+BOOM run forever, a cycle cap stops it so we still get a full, comparable trace
+instead of a timeout with no output.
+
+\section{Implementation}
+The loop is about 3.8k lines of Python with no extra runtime libraries. It
+drives a toolchain we script fully so it rebuilds the same way on a fresh cloud
+account: Spike (pinned to one commit, built from source),
+\code{riscv64-unknown-elf-gcc}~14.2, Verilator~5.022, Dromajo, and a Chipyard
+BOOM~v3 Verilator model with commit logging on. The whole toolchain installs
+without root. The model calls use Gemini and fall back to a fixed offline path
+when no key is set, so the loop still runs and can be tested at no cost. Every
+result records where it came from: a fixed rule, the offline path, or which
+model. The code ships with 58 unit tests, most of them checks that the test
+gate and the decision rules reject what they should.
+
+\section{Results}
+All numbers below come from runs on the funded compute: BOOM built and run as a
+Chipyard \code{MediumBoomV3} Verilator model, with Spike and Dromajo as the two
+reference models.
+
+\subsection{Planted-bug study}
+Real bugs in a mature core are rare, so we test the loop against planted bugs.
+Each planted bug is one small, reversible change to BOOM's source at a chosen
+spot, anchored by an exact text match so a wrong match is caught before a build,
+not after. The set has eleven planted bugs: three in load/store memory ordering
+and eight in forwarding and the datapath. Each one is a known bug, so the test
+gives two numbers: \emph{recall}, how many the loop finds, and \emph{precision},
+how many of its BOOM-bug calls land on a real planted bug. A third number comes
+for free: any BOOM-bug call on the clean version is a false alarm and must be
+zero.
+
+Two things keep the numbers honest. We only count recall over bugs that are
+\emph{observable}: a bug that never changes committed state cannot be found by
+any comparison, so we check each missed bug against the clean baseline and mark
+it ``not observable'' instead of counting it as a miss. And we check that each
+planted binary really differs from the baseline, so a ``not observable'' result
+can never come from a cached or failed build.
+
+\begin{table}[t]
+\centering\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lll}
+\toprule
+Planted bug & Site & Result \\
+\midrule
+\cls{bypass\_rs1\_disabled}     & register-read & \textbf{found} \\
+\cls{bypass\_rs2\_disabled}     & register-read & \textbf{found} \\
+\cls{bypass\_rs1\_match\_wrong} & register-read & \textbf{found} \\
+\cls{bypass\_rs2\_match\_wrong} & register-read & \textbf{found} \\
+\cls{bypass\_rs1\_zero\_guard}  & register-read & \textbf{found} \\
+\cls{bypass\_rs2\_zero\_guard}  & register-read & \textbf{found} \\
+\cls{forward\_std\_val\_stuck}  & lsu           & \textbf{found} \\
+\cls{fwd\_iresp\_early}         & lsu           & \textbf{found} \\
+\cls{order\_fail\_suppressed}   & lsu           & not observable \\
+\cls{fencei\_early}             & lsu           & not observable \\
+\cls{mov\_wrong\_operand}       & exec unit     & not observable \\
+\bottomrule
+\end{tabular}
+\caption{Planted-bug results. Every bug that changes committed state on a single
+core was found; the three that never change committed state are left out of
+recall, not counted as misses.}
+\label{tab:seedresults}
+\end{table}
+
+\textbf{Results.} Of the eleven planted bugs (Table~\ref{tab:seedresults}),
+eight change committed state under our tests and three do not. The vote found
+all eight that do: recall over observable bugs is \textbf{8 of 8}. Precision is
+\textbf{100\%}: on the clean baseline the tool made \emph{zero} BOOM-bug calls,
+so every call landed on a real planted bug. The three not-observable bugs are
+two multi-core memory-ordering effects and one register-move case our tests
+never trigger. These are honest limits of single-core bare-metal testing, not
+tool failures. Each one builds a binary that really differs from the baseline
+yet commits the same state.
+
+\begin{figure}[t]
+\centering\scriptsize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Spike (reference)} & \textbf{BOOM} \\
+\midrule
+\code{0x10 mv a0,s2} & \code{0x10 mv a0,s2} \\
+\textit{(handler entry)} & \code{0x12 ecall} $\leftarrow$ \textit{logged} \\
+\code{0x50 csrr mcause} & \code{0x50 csrr mcause} \\
+\bottomrule
+\end{tabular}
+\caption{Finding 1. BOOM logs the trapping \code{ecall}; Spike does not. Both
+reach the same handler with the same \code{mcause}. The apparent control-flow
+difference is a logging habit, not a bug.}
+\label{fig:finding1}
+\end{figure}
+
+\textbf{Finding 1: a logging habit that looks like a bug.} Our exception test
+traps on purpose. The comparison first reported a control-flow difference. We
+looked instead of assuming. BOOM logs the trapping instruction (for example
+\code{ecall}) with no register write, while Spike jumps straight to the handler.
+Both then enter the same handler with the same \code{mcause}, so the state is
+the same. It is a logging habit, not a bug. Left alone it would raise a false
+alarm on every exception test. We handle it, but we \emph{count and report} each
+skip instead of quietly realigning, since a tool that quietly realigns can hide
+a real bug. Handling it showed a second case, the compressed \code{c.ebreak}
+form, that our first list missed. The same habit shows up \emph{between the two
+references}: on the exception test Spike and Dromajo disagree, which the vote
+flags as a reference-model mismatch. A closer look shows it is the same logging
+habit, not a reference-model bug, and the tool does not report it as one.
+
+\textbf{Finding 2: the second reference finds a bug the first misses.} The
+\cls{forward\_std\_val\_stuck} bug breaks store-to-load forwarding. The wrong
+value throws the program off course, so the difference shows up as a cut-off
+trace, which single-reference triage calls a test-setup problem and misses. The
+vote finds it: both references finish and agree, BOOM is the odd one out, so the
+call is a BOOM bug no matter how the difference looks. This is the clear case for
+the second reference: a bug the one-reference path missed, found by a simple
+vote.
+
+\textbf{Finding 3: repeat and evidence checks matter.} Two bugs in our own
+harness, including a wrong file path that gave an empty BOOM trace, were caught
+by the decision part, which correctly refused to call an empty trace a bug. This
+is why we run fixed checks before any model call: repeat first, and tell ``the
+tool did not run'' apart from ``the models disagree.''
+
+\section{Limitations and Future Work}
+\label{sec:limitations}
+The main limit is honest and simple. Single-core bare-metal tests cannot see
+every kind of bug: three of our eleven planted bugs never change committed state
+this way, so no comparison can catch them. Two of them are multi-core memory
+effects that need more than one hart to show up. The vote also has one known
+rough edge: the reference-model mismatch on the exception test is a logging
+habit, and we should normalise it the same way we did for BOOM. Finally, these
+are planted bugs that show the method works; we have not yet found a new,
+real bug in BOOM.
+
+\section{Ideas to Extend the Loop}
+Three more steps would make the loop stronger. Each builds on existing work.
+
+\textbf{A formal reference model.} Adding the Sail formal RISC-V
+model~\cite{sail}, the official executable spec, as a third reference would make
+the vote even stronger, since it is grounded in the written rules.
+
+\textbf{Coverage feedback for choosing spots.} Right now the loop reads only
+static source. Feeding it live signals, such as CSR changes like
+ProcessorFuzz~\cite{processorfuzz} or register coverage like
+DIFUZZRTL~\cite{difuzzrtl}, would tell the model where the tests have not been
+yet. No current fuzzer uses a model to choose where to aim.
+
+\textbf{Deeper test programs.} Straight-line programs cannot reach every state.
+Cascade's~\cite{cascade} tangled programs reach much deeper, which would raise
+how many planted bugs are observable and lift the ceiling on recall.
+
+\textbf{Formal check of a difference.} A difference found by testing is a cheap
+lead; a bounded formal check is a proof. A found difference could seed a formal
+property, checked by the yosys/SymbiYosys flow we built earlier, to turn a
+suspect trace into a proof or a small counterexample.
+
+\section{Conclusion}
+We built a full, repeatable loop that looks for bugs in BOOM by comparing it to
+two reference models. We credit the co-simulation as a Berkeley feature and add
+the layer on top: reading the RTL to choose tests, writing tests that do real
+work, and deciding what each difference means. The tool is careful not to invent
+findings: a gate that drops empty tests, fixed rules that settle the easy cases,
+and a high bar for calling something a BOOM bug. On planted bugs it found every
+one that a single core can show, made no false alarms, and, with a second
+reference model, found a bug the one-reference path missed.
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

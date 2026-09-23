@@ -1,0 +1,263 @@
+\documentclass[10pt,twocolumn]{article}
+
+\usepackage[letterpaper,margin=0.75in,columnsep=0.28in]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{times}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,allcolors=blue!55!black]{hyperref}
+\usepackage{titlesec}
+
+\titlespacing*{\section}{0pt}{1.05ex}{0.55ex}
+\titlespacing*{\subsection}{0pt}{0.8ex}{0.4ex}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{1em}
+\frenchspacing
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\cls}[1]{\textsc{#1}}
+
+\title{\vspace{-3.5em}\bfseries An Agentic Loop for Multi-Model Divergence
+Hunting on the BOOM Core}
+\author{Divya Kohli\\[2pt]
+\normalsize University of California, Santa Cruz\\
+\normalsize\texttt{dkohli1@ucsc.edu}}
+\date{\vspace{-1.2em}\small A3 CHIA Hackathon 2026 --- MICRO A3 Workshop}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+We present a CHIA loop that hunts for divergences between an out-of-order
+RISC-V implementation (BOOM) and a functional ISA oracle (Spike) by reading the
+implementation's RTL, targeting test programs at predicted disagreement points,
+and classifying each observed divergence. The loop is four composable blocks:
+\emph{hypothesize} scans BOOM's source for seams where an out-of-order design
+must reconstruct behaviour the oracle gets for free; \emph{generate} turns each
+hypothesis into a bare-metal test program and refuses any that does not do real
+work; \emph{compare} performs a committed-state diff against the oracle; and
+\emph{triage} classifies each divergence into one of five categories, deciding
+mechanically wherever possible and reserving model judgement for what genuinely
+needs it. We report the infrastructure, the design decisions that keep the loop
+from reporting noise as bugs, and two concrete artifacts the loop surfaced on
+its first real runs: a commit-log convention that manifests as a false
+control-flow divergence, and the reproducibility and evidence discipline needed
+before any disagreement is called an implementation defect. We are explicit
+about what is Berkeley infrastructure we build upon versus what the loop
+contributes, and about which results are mechanical versus model-driven.
+\end{abstract}
+
+\section{Introduction}
+Comparing a cycle-accurate RTL implementation against a functional ISA
+simulator is a standard way to find processor bugs, and the Chipyard ecosystem
+already ships the plumbing to do it: the \code{WithCospike} harness attaches
+Spike to a BOOM simulation, and \code{WithTraceIO} exposes a commit trace. The
+open problem is not \emph{running} the comparison but \emph{driving} it:
+deciding what to test, generating stimulus that reaches the interesting corners,
+and---above all---deciding what an observed difference \emph{means}. A raw
+mismatch between two models is not a bug report. It may be an implementation
+defect, an oracle defect, a difference the architecture explicitly permits, or
+an artifact of the comparison itself.
+
+This work builds a CHIA loop around exactly that judgement problem. We are
+deliberate about attribution: the Spike/BOOM co-simulation capability is
+existing Berkeley infrastructure, and we credit it as such. Our contribution is
+the agentic layer on top---seam-directed hypothesis generation, a self-checking
+stimulus generator, and a triage stage that separates the five outcomes above
+with a strong bias against false implementation-defect reports.
+
+\section{Background}
+\textbf{CHIA} is an open framework for AI-driven hardware/software co-design
+flows, with built-in support for architecture tools including Chipyard, Spike,
+Verilator and gem5. \textbf{BOOM} is an out-of-order RISC-V core generator;
+\textbf{Spike} is the RISC-V reference ISA simulator. A functional oracle
+retires instructions in program order and computes architectural state
+directly. An out-of-order implementation reconstructs that same state through
+renaming, speculation, queues and bypass networks---the machinery where the two
+can disagree. Because the oracle has no notion of cycles, only \emph{committed
+architectural state}---the retired PC stream, instruction bits, and
+architectural register writes---is a legitimate basis for comparison. Cycle
+counts and issue order are not.
+
+\section{Loop Design}
+The loop is four blocks, each a self-contained CHIA component.
+
+\subsection{Hypothesize}
+The hypothesize block is split into a deterministic stage and a model stage, so
+that every hypothesis is traceable to the RTL that motivated it. The
+deterministic stage, \code{scan\_seams}, sweeps BOOM's source for markers in
+five categories---exception priority, queue-pointer management, bypass/forward
+networks, memory ordering, and code the authors themselves flag as unfinished
+(\code{TODO}/\code{FIXME} and disabled features). Each hit is recorded with a
+\code{file:line} citation. On BOOM v3 (56 Scala files, ${\sim}18.8$k lines) the
+scan finds \textbf{423 seams}; Table~\ref{tab:seams} gives the distribution.
+
+The model stage turns ranked seam evidence into structured hypotheses, each with
+preconditions, a stimulus sketch, and a predicted observable divergence. A
+relevance ranking ensures a memory-ordering hypothesis cites the load/store unit
+rather than, say, an instruction-cache fence that merely matched the same
+keyword---citations that do not support their claim are worse than no citation.
+
+\begin{table}[t]
+\centering\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrl}
+\toprule
+Category & Seams & Densest file \\
+\midrule
+\cls{bypass\_forward}     & 151 & \code{exu/rename-stage.scala} \\
+\cls{memory\_ordering}    & 118 & \code{lsu/lsu.scala} (80) \\
+\cls{acknowledged\_gap}   &  92 & \code{exu/\dots/exec-unit} \\
+\cls{queue\_pointer}      &  45 & \code{util/util.scala} \\
+\cls{exception\_priority} &  17 & \code{ifu/frontend.scala} \\
+\midrule
+Total & 423 & \\
+\bottomrule
+\end{tabular}
+\caption{Seams located by the deterministic scan of BOOM v3. The load/store
+unit dominates the memory-ordering category, as expected.}
+\label{tab:seams}
+\end{table}
+
+\subsection{Generate}
+The generate block renders each hypothesis into bare-metal RV64GC assembly,
+wrapped in a harness that installs a trap handler (recording \code{mcause} into
+committed state and stepping over the faulting instruction) and terminates via
+the HTIF \code{tohost} convention. The block's core is a \emph{validation gate}.
+Generated assembly fails in ways easily mistaken for results: it may not
+assemble, may never terminate, or may terminate having executed nothing. A
+program that retires no instructions produces a \emph{clean} comparison, so a
+loop that counts clean comparisons as evidence of correctness would happily
+report that a broken generator found no bugs. Every program is therefore
+assembled, executed on the oracle under an instruction budget, and required to
+retire a minimum number of post-reset instructions before entering the suite.
+Rejections are counted and reported: they are the gate working, not the loop
+failing.
+
+\subsection{Compare}
+The compare block normalises both models' output into a single committed-event
+stream and diffs them in lockstep from a synchronisation PC, stopping at the
+first divergence. Comparison begins at the program's entry rather than at reset,
+because the two models execute different boot sequences: on our smoke test BOOM
+retires 34 bootrom instructions before entry where Spike retires 5, and
+comparing from index zero would report a divergence on every run. A key
+practical finding is that BOOM's commit-log fragment emits Spike's exact format
+minus a hart prefix, so a single parser serves both; the hart prefix is treated
+as optional.
+
+\subsection{Triage}
+Triage assigns each divergence to one of five classes: \cls{rtl\_defect},
+\cls{model\_defect}, \cls{legal\_nondeterminism}, \cls{harness\_artifact}, or
+\cls{inconclusive}. Cases decidable by construction are decided first, with no
+model call: a divergence that does not reproduce across repeated runs of two
+deterministic models is \cls{inconclusive}; a difference on a free-running
+counter CSR (\code{cycle}, \code{time}, \code{instret}) is
+\cls{legal\_nondeterminism} by definition; an empty or truncated trace is a
+\cls{harness\_artifact}, and we distinguish the two because advising a larger
+instruction budget is useless when the simulator never started. Only what
+survives this filter is passed to the model, and then with real evidence:
+disassembly at both program counters, surrounding trace context, and the RTL
+seam the hypothesis cited. The bar for \cls{rtl\_defect} is deliberately high---a
+false defect report to BOOM's authors costs more than a missed one---so anything
+the evidence does not settle returns \cls{inconclusive} rather than being
+rounded up. Only \cls{rtl\_defect} and \cls{model\_defect} findings feed back
+into the next hypothesis round; artifacts and legal differences are excluded, as
+feeding them back would steer the loop toward more of the same noise.
+
+\section{Implementation}
+The loop is ${\sim}3.2$k lines of Python with no third-party runtime
+dependencies, driving a toolchain that is fully scripted for reproducible
+deployment: Spike (pinned commit \code{0e18353}, built from source),
+\code{riscv64-unknown-elf-gcc}~14.2, Verilator~5.022, and a Chipyard BOOM~v3
+Verilator simulator built with \code{WithBoomCommitLogPrintf}. The entire
+toolchain installs without root privileges via \code{micromamba} plus a
+source-built frontend server, so it replays unchanged on a fresh cloud account.
+The model interface targets Gemini and degrades to a deterministic offline
+baseline when no key is present, so the loop is runnable and testable at zero
+API cost; every result carries a \code{provenance} field distinguishing
+mechanical, offline-heuristic, and model-driven outcomes. The codebase ships
+with 50 unit tests, weighted toward negative controls that confirm the
+validation gate and the triage rules reject what they should.
+
+\section{Results}
+We report infrastructure results and two qualitative findings; the quantitative
+triage-precision and seeded-defect-recall study requires model-driven runs (see
+\S\ref{sec:limitations}).
+
+\textbf{The loop runs end to end.} From 423 seams, the offline configuration
+produces one hypothesis per category, generates five test programs, and all five
+clear the validation gate (retiring 20--176 instructions each). Each is executed
+on both models and diffed. This exercises every block and the full data path
+from RTL scan to classified finding.
+
+\begin{figure}[t]
+\centering\scriptsize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Spike (oracle)} & \textbf{BOOM (implementation)} \\
+\midrule
+\code{0x10 mv a0,s2} & \code{0x10 mv a0,s2} \\
+\textit{(handler entry)} & \code{0x12 ecall} $\leftarrow$ \textit{retired} \\
+\code{0x50 csrr mcause} & \code{0x50 csrr mcause} \\
+\bottomrule
+\end{tabular}
+\caption{Finding 1. BOOM's commit log retires the trapping \code{ecall}; Spike's
+does not. Both reach the handler with identical \code{mcause}. The apparent
+control-flow divergence is a logging convention, not a defect.}
+\label{fig:finding1}
+\end{figure}
+
+\textbf{Finding 1: a commit-log convention masquerading as a control-flow bug.}
+Our exception-priority test deliberately traps several times. The comparison
+initially reported a \cls{control\_flow} divergence. Investigation---not
+assumption---showed that BOOM's commit log retires the trapping instruction
+(e.g.\ \code{ecall}) with no architectural writes, whereas Spike's log jumps
+directly to the handler entry. Both models then enter the same handler with the
+same \code{mcause}; architectural state is identical. This is a commit-log
+convention, not a defect. Left unhandled it would fire a false positive on every
+exception test. We normalise it---but \emph{count and report} each elision
+rather than silently resynchronising, since a differ that quietly realigns can
+hide a real bug. Handling it immediately surfaced a second case, the
+\emph{compressed} \code{c.ebreak} encoding, which our initial instruction set
+missed. This is precisely the implementation-vs-model-vs-artifact distinction the
+loop exists to make, produced on a real run.
+
+\textbf{Finding 2: reproducibility and evidence discipline are load-bearing.}
+Two bugs in our own harness---a relative ELF path resolved against the wrong
+working directory, yielding an empty BOOM trace---were caught by the triage
+block, which correctly declined to call the empty trace a defect. This motivated
+the mechanical rules that run before any model call: reproduce first, and
+distinguish ``the tool did not run'' from ``the models disagree.''
+
+\section{Limitations and Future Work}
+\label{sec:limitations}
+The central limitation is honest and specific: the judgement calls are stubbed.
+Without an API key, every divergence needing real analysis is returned
+\cls{inconclusive} rather than guessed, and the offline hypotheses and test
+programs are coarse category templates. The headline metrics our design is built
+to produce---triage precision against manual review, and recall against a set of
+defects deliberately injected into BOOM's RTL as a control---require
+model-driven runs on the funded compute. The mutation machinery for the seeded
+control set is reused from our formal-verification prototype and applies to
+BOOM's Verilog without change. A second axis, adding a second independent oracle
+(e.g.\ Dromajo, already supported by Chipyard) would let triage distinguish
+implementation from oracle defects mechanically: disagreement with both oracles
+implicates the implementation, disagreement with one implicates that oracle.
+
+\section{Conclusion}
+We have built a complete, reproducible agentic loop for multi-model divergence
+hunting on BOOM, with the co-simulation credited as Berkeley infrastructure and
+the agentic hypothesize/generate/triage layer as the contribution. The design's
+distinguishing feature is its refusal to manufacture findings: a validation gate
+that rejects work-free programs, mechanical triage rules that resolve the cheap
+cases for free, and a high, evidence-gated bar for reporting an implementation
+defect. On its first runs the loop already produced a genuine
+implementation-versus-artifact distinction. With model-driven triage on the
+funded compute, the same scaffolding yields the precision and recall numbers the
+approach is designed to measure.
+
+\end{document}

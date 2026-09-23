@@ -1,0 +1,34 @@
+# Toolchain built by setup/ scripts (large; rebuildable)
+tools/
+.venv/
+
+# Secrets — never commit
+.gemini.key
+*.key
+
+# Build + run outputs
+build/
+reports/*.json
+reports/*.log
+reports/seedstudy/
+__pycache__/
+*.pyc
+
+# Paper build artifacts (keep .tex, .bib, .bst, .cls, .pdf)
+paper/*.aux
+paper/*.out
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.synctex.gz
+
+# Local scratch / editor
+*.vcd
+*.orig
+dromajo.dtb
+*.Zone.Identifier
+*:Zone.Identifier
+
+# Bulky input zips (not part of the source)
+IEEEtranBST2.zip
+conference-latex-template.zip
