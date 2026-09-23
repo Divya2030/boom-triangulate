@@ -280,6 +280,16 @@ by the decision part, which correctly refused to call an empty trace a bug. This
 is why we run fixed checks before any model call: repeat first, and tell ``the
 tool did not run'' apart from ``the models disagree.''
 
+\textbf{Finding 4: a real-input probe, correctly attributed.} Beyond planted
+bugs, we pointed the loop at a documented BOOM issue (a report that misaligned
+loads could return corrupted data instead of trapping). On our build the bug does
+not reproduce: BOOM traps the misaligned load and \emph{agrees with Spike}. The
+loop did not blame BOOM. Instead it flagged an \cls{oracle\_mismatch}, because
+Spike traps misaligned loads while Dromajo permits them---a real policy
+difference between the two references, not a design bug. This is the
+classification working on real input: the loop kept BOOM clear and pointed at the
+right source of the difference.
+
 \section{Limitations and Future Work}
 \label{sec:limitations}
 We are explicit about four limits.
