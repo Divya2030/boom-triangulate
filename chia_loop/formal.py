@@ -24,7 +24,7 @@ from .tools import have, missing, run
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(REPO, "build")
-SBY_FILE = os.path.join(REPO, "formal", "freelist.sby")
+SBY_FILE = os.path.join(REPO, "legacy-formal", "formal", "freelist.sby")
 
 TASKS = ("bmc", "prove", "cover")
 
@@ -117,7 +117,7 @@ def _run_yosys(script: str, timeout: int) -> tuple[str, float, int]:
     ys = yosys_bin()
     if ys is None:
         return "", 0.0, 127
-    res = run([ys, "-s", script], cwd=REPO, timeout=timeout)
+    res = run([ys, "-s", script], cwd=os.path.join(REPO, "legacy-formal"), timeout=timeout)
     return res.output, res.seconds, res.returncode
 
 
@@ -238,7 +238,7 @@ def run_task(task: str, backend: str = "yosys", timeout: int = 1800,
                       "also needs an SMT solver; the yosys backend does not.")
             return v
         res = run(["sby", "-f", SBY_FILE, task],
-                  cwd=os.path.join(REPO, "formal"), timeout=timeout)
+                  cwd=os.path.join(REPO, "legacy-formal", "formal"), timeout=timeout)
         v.seconds = res.seconds
         v.log = res.output[-16000:]
         m = re.search(r"DONE \((PASS|FAIL|UNKNOWN|ERROR)", res.output, re.I)

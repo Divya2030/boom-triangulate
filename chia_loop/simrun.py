@@ -17,9 +17,9 @@ SUMMARY_RE = re.compile(r"SUMMARY cycles=(\d+) fails=(\d+)")
 RESULT_RE = re.compile(r"RESULT (PASS|FAIL)")
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TB = os.path.join(REPO, "verif", "tb_freelist.v")
-INCDIR = os.path.join(REPO, "verif")
-GOLDEN_RTL = os.path.join(REPO, "rtl", "freelist.v")
+TB = os.path.join(REPO, "legacy-formal", "verif", "tb_freelist.v")
+INCDIR = os.path.join(REPO, "legacy-formal", "verif")
+GOLDEN_RTL = os.path.join(REPO, "legacy-formal", "rtl", "freelist.v")
 
 
 @dataclass
