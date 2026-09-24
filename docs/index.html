@@ -473,9 +473,10 @@
       <ul>
         <li><b>The results are from planted bugs, not a new BOOM bug.</b> They show the method works —
         it finds bugs we put in on purpose. We have not yet found a new, real bug in BOOM.</li>
-        <li><b>Half the planted bugs are not observable on one core.</b> Three of six never change what a
-        single core commits, so no comparison can catch them. Two need more than one core. We leave those
-        out of the recall number instead of counting them as misses.</li>
+        <li><b>Some planted bugs are not observable on one core.</b> Three of the eleven never change what a
+        single core commits, so no comparison can catch them. Two of those need more than one core; the
+        third our tests never trigger. We leave them out of the recall number instead of counting them as
+        misses.</li>
         <li><b>The reference models agree with each other, except one logging habit.</b> On the exception
         test Spike and Dromajo differ, but it is only how they log a trap, not a real disagreement — and
         the tool does not call it a bug.</li>
