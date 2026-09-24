@@ -302,13 +302,63 @@ was at fault. This is the concrete payoff of a second reference---and, since
 reference models do carry real bugs (ProcessorFuzz found one), a capability that
 matters in practice.
 
+\subsection{Random-program campaigns}
+Targeted tests aim at spots we picked. To cover ground we did not pick, we also
+ran many constrained-random programs, in the spirit of SimFuzz~\cite{simfuzz} and
+DIFUZZRTL~\cite{difuzzrtl} but simpler: each program is legal, terminating, and
+trap-free, so any difference is a real disagreement and not a crash we caused.
+
+\textbf{Integer campaign.} We generated 200 random RV64IM programs---straight-line
+register, immediate, shift, multiply/divide, and aligned load/store instructions
+over a fixed scratch buffer---and ran each through the vote against BOOM and both
+references. Every one came back clean: BOOM matched both references on all
+committed state, across all 200 programs.
+
+\textbf{Floating-point campaign.} We then turned on the FPU (RV64IMFD) and wrote a
+second generator aimed at the parts of floating point that implementations get
+wrong most often: NaN-boxing of single-precision values, \code{min}/\code{max}
+with a NaN operand, saturating float-to-integer conversion, signed zero, fused
+multiply-add, and all five rounding modes. One design choice keeps the vote
+sound: the three models write floating-point results to their logs in different
+formats, so we never compare the float registers directly. Instead each result is
+moved into an integer register (\code{fmv.x.d}) and the accumulated exception
+flags are read into an integer register (\code{csrr fflags}), so every observable
+value lands in the integer file, which all three models report the same way. We
+ran 80 such programs, about 8{,}000 floating-point instructions in all. Every one
+came back clean.
+
+\textbf{Two false alarms, caught.} On the way there the vote twice called BOOM the
+outlier. Both times we did what Finding 1 teaches: read the exact instruction
+before calling it a bug. Both were our own test setup, not BOOM. The first was the
+exception-flag register: BOOM starts it with bits set that the references start
+clear, so a test that never cleared it was comparing leftover reset state. The
+second was the rounding mode: a dynamically-rounded subtract differed by one unit
+in the last place because we had not set the rounding mode, and BOOM's reset
+rounding mode differs from the references'. Clearing the whole floating-point
+control register first---both the flags and the rounding mode---made all three
+agree. The lesson is the one the loop is built on: a vote proposes, the exact
+instruction disposes, and controlling the machine's start state is part of an
+honest floating-point test.
+
+\textbf{What the campaigns show.} We did not find a new bug in BOOM. What we did
+show is that BOOM's integer and floating-point datapaths agree with two
+independent references across many random inputs, and that the triage keeps false
+alarms out even when the start state is tricky. The strength on show here is
+detection and triage, not discovery on this harness.
+
 \section{Limitations and Future Work}
 \label{sec:limitations}
 We are explicit about four limits.
 
 First, single-core bare-metal tests cannot see every kind of bug: three of our
 eleven planted bugs never change committed state this way, so no comparison can
-catch them. Two are multi-core memory effects that need more than one hart.
+catch them. Two are multi-core memory effects that need more than one hart. This
+is also why the documented open bugs we looked at do not reproduce here: they
+need virtual memory, a change of privilege, or more than one core to reach, and
+our harness sets up none of these. The gap is not detection but reach---the vote
+finds a difference wherever the test can make one appear, but a bare-metal
+single-core program cannot drive the machine into those states in the first
+place. A richer harness is the honest way to close it (below).
 
 Second, our results do not isolate the value of aiming tests at specific RTL
 spots. Seven of the eight caught bugs were detected by one broad, mixed program
@@ -344,6 +394,12 @@ yet. No current fuzzer uses a model to choose where to aim.
 \textbf{Deeper test programs.} Straight-line programs cannot reach every state.
 Cascade's~\cite{cascade} tangled programs reach much deeper, which would raise
 how many planted bugs are observable and lift the ceiling on recall.
+
+\textbf{A richer harness.} Most documented BOOM bugs live behind virtual memory,
+a change of privilege, or a second core. A harness that sets up page tables,
+steps through the privilege levels, and boots more than one hart would let the
+same vote reach those bug classes. This is the single change most likely to turn
+the method from catching planted bugs into finding real ones.
 
 \textbf{Formal check of a difference.} A difference found by testing is a cheap
 lead; a bounded formal check is a proof. A found difference could seed a formal

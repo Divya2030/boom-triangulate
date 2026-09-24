@@ -11,6 +11,12 @@ build/
 reports/*.json
 reports/*.log
 reports/seedstudy/
+
+# Generated fuzzer programs (regenerable from seeds by the campaign runners)
+tests/progs/fuzz/
+tests/progs/fpfuzz/
+tests/progs/organic/
+tests/progs/generated/
 __pycache__/
 *.pyc
 

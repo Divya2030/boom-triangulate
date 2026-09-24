@@ -32,19 +32,33 @@ class TestTriangulation(unittest.TestCase):
         self.assertEqual(t.outlier, "boom")
         self.assertEqual(t.confidence, "high")
 
-    def test_oracles_disagree_is_oracle_mismatch(self):
-        spike = BASE
+    def test_boom_breaks_oracle_tie_model_defect(self):
+        # boom==spike, dromajo differs -> Dromajo is the outlier (MODEL_DEFECT).
         dromajo = BASE.replace("x10 0x0000000000000002", "x10 0x0000000000000099")
-        boom = BASE
+        t = triangulate(ev(BASE), ev(BASE), ev(dromajo))
+        self.assertEqual(t.verdict, "MODEL_DEFECT")
+        self.assertEqual(t.outlier, "dromajo")
+
+    def test_spike_is_outlier_model_defect(self):
+        # boom==dromajo, spike differs -> Spike is the outlier (the seeded-Spike demo).
+        spike = BASE.replace("x10 0x0000000000000002", "x10 0x0000000000000099")
+        t = triangulate(ev(BASE), ev(spike), ev(BASE))
+        self.assertEqual(t.verdict, "MODEL_DEFECT")
+        self.assertEqual(t.outlier, "spike")
+
+    def test_three_way_split_inconclusive(self):
+        spike = BASE.replace("x 5 0x0000000000000001", "x 5 0x00000000000000aa")
+        dromajo = BASE.replace("x 5 0x0000000000000001", "x 5 0x00000000000000bb")
+        boom = BASE.replace("x 5 0x0000000000000001", "x 5 0x00000000000000cc")
         t = triangulate(ev(boom), ev(spike), ev(dromajo))
-        self.assertEqual(t.verdict, "ORACLE_MISMATCH")
+        self.assertEqual(t.verdict, "INCONCLUSIVE")
 
     def test_dromajo_outlier_is_model_defect(self):
         # BOOM and Spike agree; Dromajo alone differs.
         dromajo = BASE.replace("x 5 0x0000000000000001", "x 5 0x00000000cafef00d")
         t = triangulate(ev(BASE), ev(BASE), ev(dromajo))
         # Spike==Dromajo? no. BOOM==Dromajo? no. BOOM==Spike? yes -> oracle B (dromajo) outlier
-        self.assertIn(t.verdict, ("MODEL_DEFECT", "ORACLE_MISMATCH"))
+        self.assertEqual(t.verdict, "MODEL_DEFECT")
 
     def test_actionable_flag(self):
         boom = BASE.replace("x10 0x0000000000000002", "x10 0x00000000deadbeef")

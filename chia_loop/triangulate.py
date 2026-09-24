@@ -88,44 +88,35 @@ def triangulate(boom: list[CommitEvent], spike: list[CommitEvent],
                 "spike_vs_dromajo": "agree" if sd else "differ"}
 
     if bs and bd:
-        # BOOM matches both oracles. (If the oracles somehow disagree with each
-        # other here it is a contradiction from stopping at first divergence;
-        # treat the implementation as clean.)
+        # BOOM matches both oracles -> clean. (A stray oracle disagreement here
+        # is a first-divergence/truncation artifact; the implementation is clean.)
         return Triangulation("CLEAN", "mechanical", "",
                              "Implementation agrees with both independent oracles.",
                              pairwise)
 
-    if not sd:
-        # The oracles disagree with each other -- a defect in one reference model,
-        # independent of the implementation. This is itself a finding.
-        return Triangulation(
-            "ORACLE_MISMATCH", "mechanical", "",
-            "The two reference models disagree with each other, so at least one "
-            "oracle is wrong; the implementation cannot be judged until the "
-            "oracles are reconciled.", pairwise)
-
-    # Oracles agree with each other (sd is True) from here on.
-    if not bs and not bd:
-        return Triangulation(
-            "RTL_DEFECT", "high", "boom",
-            "Both independent oracles agree and the implementation is the sole "
-            "outlier -- strong mechanical evidence of an implementation defect.",
-            pairwise)
-
-    # BOOM agrees with exactly one oracle while the oracles agree with each
-    # other: impossible under a consistent comparison, but if it arises the lone
-    # disagreeing oracle is the suspect.
-    if bs and not bd:
-        return Triangulation("MODEL_DEFECT", "medium", "dromajo",
-                             "Implementation and Spike agree; Dromajo is the "
-                             "outlier, implicating that reference model.",
-                             pairwise)
+    # BOOM agrees with exactly one oracle: it breaks the tie and names the other
+    # oracle as the outlier. This is the case single-golden-model tools cannot
+    # decide -- a bug in a reference model, not in the implementation.
     if bd and not bs:
-        return Triangulation("MODEL_DEFECT", "medium", "spike",
-                             "Implementation and Dromajo agree; Spike is the "
-                             "outlier, implicating that reference model.",
+        return Triangulation("MODEL_DEFECT", "high", "spike",
+                             "Implementation and Dromajo agree; Spike is the sole "
+                             "outlier, so the defect is in that reference model.",
+                             pairwise)
+    if bs and not bd:
+        return Triangulation("MODEL_DEFECT", "high", "dromajo",
+                             "Implementation and Spike agree; Dromajo is the sole "
+                             "outlier, so the defect is in that reference model.",
                              pairwise)
 
+    # BOOM agrees with neither oracle.
+    if sd:
+        # Both oracles agree with each other; BOOM is the sole outlier.
+        return Triangulation("RTL_DEFECT", "high", "boom",
+                             "Both independent oracles agree and the implementation "
+                             "is the sole outlier -- strong evidence of an "
+                             "implementation defect.", pairwise)
+    # All three disagree: no majority to trust.
     return Triangulation("INCONCLUSIVE", "low", "",
-                         "Three-way split with no majority; escalate to "
+                         "Three-way split: implementation and both references all "
+                         "disagree, so no side can be trusted; escalate to "
                          "model-backed triage with full evidence.", pairwise)
