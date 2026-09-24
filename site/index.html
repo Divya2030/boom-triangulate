@@ -355,6 +355,39 @@
     </div>
   </section>
 
+  <!-- random-program campaigns -->
+  <section>
+    <div class="h2row"><h2>Random-program campaigns</h2><span class="h2note">integer + floating-point · Spike + Dromajo + BOOM</span></div>
+    <p class="lede">Targeted tests aim where we chose. To cover ground we did not choose, we also ran many
+    constrained-random programs — every one legal, terminating, and trap-free, so a difference is a real
+    disagreement, not a crash we caused. The integer runs came first; then we turned on the FPU and aimed a
+    second generator at the parts of floating point that go wrong most.</p>
+    <div class="metrics">
+      <div class="metric"><div class="v target">200</div><div class="k">random <b>RV64IM</b> programs — all CLEAN</div></div>
+      <div class="metric"><div class="v target">80</div><div class="k">random <b>RV64IMFD</b> programs — all CLEAN</div></div>
+      <div class="metric"><div class="v">~8k</div><div class="k">floating-point instructions compared</div></div>
+      <div class="metric"><div class="v">0</div><div class="k">divergences — BOOM matched both references</div></div>
+    </div>
+    <p class="lede">The floating-point generator targets the hard seams: <b>NaN-boxing</b>, <b>min/max with a
+    NaN</b>, <b>saturating float→int</b>, <b>signed zero</b>, fused multiply-add, and all five <b>rounding
+    modes</b>. One trick keeps the vote sound — the three models print float registers differently, so we
+    never compare them directly. Each result is moved into an integer register
+    (<span class="mono">fmv.x.d</span>) and the exception flags read into one
+    (<span class="mono">csrr fflags</span>), so every value lands in the integer file, which all three log
+    the same way.</p>
+    <div class="find">
+      <span class="cls">TEST-SETUP · caught twice</span>
+      <h3>Two false alarms the triage refused to ship</h3>
+      <p>During bring-up the vote twice called BOOM the outlier. Both were our own start state, not BOOM.
+      First the exception-flag register: BOOM powers up with bits set that the references start clear, so a
+      test that never cleared it was comparing leftover reset state. Then the rounding mode: a
+      dynamically-rounded subtract differed by one unit in the last place because we hadn't set it, and
+      BOOM's reset rounding mode differs from the references'. Clearing the whole floating-point control
+      register first — flags and rounding mode — made all three agree. A vote proposes; the exact
+      instruction disposes.</p>
+    </div>
+  </section>
+
   <!-- findings log -->
   <section>
     <div class="h2row"><h2>Findings log</h2><span class="h2note">what the loop turned up</span></div>
@@ -411,6 +444,16 @@
         <p>Straight-line programs can't reach every state. Cascade-style tangled programs reach much
         deeper, which would make more planted bugs observable and raise the recall ceiling.</p>
         <div class="conf"><b>refs</b> Cascade (USENIX'24)</div>
+      </div>
+      <div class="hyp">
+        <div class="cat">generate · reachability</div>
+        <h3>Build a richer harness</h3>
+        <p>Most documented BOOM bugs live behind virtual memory, a change of privilege, or a second core —
+        which this bare-metal single-core harness does not set up. A harness that builds page tables, steps
+        through privilege levels, and boots more than one hart would let the same vote reach those bug
+        classes. This is the change most likely to turn the method from catching planted bugs into finding
+        real ones.</p>
+        <div class="conf"><b>refs</b> BOOM issues · RISC-V priv. spec</div>
       </div>
       <div class="hyp">
         <div class="cat">triage · escalation</div>
