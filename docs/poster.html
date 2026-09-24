@@ -5,319 +5,468 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
-    --ground:#eef2f7; --surface:#ffffff; --surface-2:#f5f8fb; --line:#d3dce6;
-    --line-strong:#b6c4d3; --ink:#111a24; --ink-2:#44586c; --ink-3:#6b7d90;
-    --accent:#0b8fa6; --accent-ink:#075e6c; --accent-wash:#dcf1f4;
-    --pass:#1a8f5a; --pass-wash:#dcf1e6; --warn:#a9690a; --warn-wash:#f4ead4;
-    --crit:#c23b46;
+    --ground:#e9edf4; --surface:#ffffff; --surface-2:#f4f7fb; --line:#d6deea; --line-strong:#b4c2d5;
+    --ink:#0e1726; --ink-2:#3f5069; --ink-3:#6a7c93;
+    /* meaningful hues */
+    --indigo:#4338ca; --indigo-wash:#e7e7fb;
+    --teal:#0d8b9c;   --teal-wash:#d6eff2;
+    --amber:#b06a12;  --amber-ink:#8a5410; --amber-wash:#f7ead0;
+    --green:#12803c;  --green-wash:#d7efdf;
+    --red:#c22f38;    --red-wash:#f7dcdd;
+    --violet:#6d28d9; --violet-wash:#eadffb;
+    --blue:#2560e6;   --blue-wash:#dbe6fd;
+    --slate:#475569;  --slate-wash:#e3e8f0;
+    /* role → hue */
+    --boom:var(--red); --boom-wash:var(--red-wash);
+    --spike:var(--blue); --spike-wash:var(--blue-wash);
+    --dromajo:var(--teal); --dromajo-wash:var(--teal-wash);
+    --shadow:0 1px 2px rgba(14,23,38,.05), 0 10px 30px rgba(14,23,38,.06);
   }
   :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
-    --ground:#0a0f16; --surface:#111a25; --surface-2:#16212e; --line:#243141;
-    --line-strong:#35485c; --ink:#e9eef4; --ink-2:#a7b6c6; --ink-3:#74869a;
-    --accent:#35c6dc; --accent-ink:#8fe6f2; --accent-wash:#0f2d34;
-    --pass:#48c98a; --pass-wash:#0f271c; --warn:#e0a63f; --warn-wash:#2b2410;
-    --crit:#ef6b76;
+    --ground:#080c13; --surface:#101927; --surface-2:#15202e; --line:#233245; --line-strong:#38495f;
+    --ink:#eaf0f7; --ink-2:#aebdcd; --ink-3:#7688a0;
+    --indigo:#8b83f5; --indigo-wash:#1c1d40;
+    --teal:#3bc6da;   --teal-wash:#0d2e34;
+    --amber:#e6ac47;  --amber-ink:#f0c06a; --amber-wash:#2e2410;
+    --green:#46cd8b;  --green-wash:#0f2a1d;
+    --red:#f0757e;    --red-wash:#301418;
+    --violet:#a984f7; --violet-wash:#211442;
+    --blue:#5c92f7;   --blue-wash:#111f3c;
+    --slate:#9fb0c4;  --slate-wash:#1a2534;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 34px rgba(0,0,0,.4);
   }}
   :root[data-theme="dark"] {
-    --ground:#0a0f16; --surface:#111a25; --surface-2:#16212e; --line:#243141;
-    --line-strong:#35485c; --ink:#e9eef4; --ink-2:#a7b6c6; --ink-3:#74869a;
-    --accent:#35c6dc; --accent-ink:#8fe6f2; --accent-wash:#0f2d34;
-    --pass:#48c98a; --pass-wash:#0f271c; --warn:#e0a63f; --warn-wash:#2b2410;
-    --crit:#ef6b76;
+    --ground:#080c13; --surface:#101927; --surface-2:#15202e; --line:#233245; --line-strong:#38495f;
+    --ink:#eaf0f7; --ink-2:#aebdcd; --ink-3:#7688a0;
+    --indigo:#8b83f5; --indigo-wash:#1c1d40; --teal:#3bc6da; --teal-wash:#0d2e34;
+    --amber:#e6ac47; --amber-ink:#f0c06a; --amber-wash:#2e2410; --green:#46cd8b; --green-wash:#0f2a1d;
+    --red:#f0757e; --red-wash:#301418; --violet:#a984f7; --violet-wash:#211442;
+    --blue:#5c92f7; --blue-wash:#111f3c; --slate:#9fb0c4; --slate-wash:#1a2534;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 34px rgba(0,0,0,.4);
   }
 
   * { box-sizing:border-box; }
   body { margin:0; background:var(--ground); color:var(--ink);
-    font-family:"IBM Plex Sans",system-ui,sans-serif; line-height:1.4;
-    -webkit-font-smoothing:antialiased; }
+    font-family:"IBM Plex Sans",system-ui,sans-serif; line-height:1.42; -webkit-font-smoothing:antialiased; }
   .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; }
 
-  /* poster board: landscape, scales to width */
-  .poster { width:100%; max-width:1440px; margin:0 auto; padding:18px;
-    display:flex; flex-direction:column; gap:14px; }
+  .poster { width:100%; max-width:1580px; margin:0 auto; padding:20px 20px 14px;
+    display:flex; flex-direction:column; gap:16px; }
 
-  /* header */
-  .banner { background:var(--surface); border:1px solid var(--line);
-    border-top:5px solid var(--accent); border-radius:12px; padding:20px 26px;
-    display:grid; grid-template-columns:1fr auto; gap:14px 28px; align-items:center; }
-  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.22em;
-    text-transform:uppercase; color:var(--accent-ink); font-weight:600; }
-  h1 { margin:.15em 0 .1em; font-size:clamp(24px,3.3vw,40px); font-weight:700;
-    letter-spacing:-.015em; text-wrap:balance; }
-  .byline { color:var(--ink-2); font-size:15px; }
-  .thesis { grid-column:1 / -1; font-size:clamp(15px,1.7vw,21px); font-weight:600;
-    color:var(--ink); border-top:1px solid var(--line); padding-top:12px; }
-  .thesis b { color:var(--accent-ink); }
-  .repo { text-align:right; font-family:"IBM Plex Mono",monospace; font-size:12px;
-    color:var(--ink-3); line-height:1.7; white-space:nowrap; }
-  .repo .u { color:var(--accent-ink); font-weight:600; }
+  /* ---------- banner ---------- */
+  .banner { position:relative; overflow:hidden; border-radius:16px; box-shadow:var(--shadow);
+    background:
+      radial-gradient(120% 160% at 0% 0%, var(--indigo-wash) 0%, transparent 55%),
+      radial-gradient(120% 160% at 100% 0%, var(--teal-wash) 0%, transparent 55%),
+      var(--surface);
+    border:1px solid var(--line); border-top:6px solid var(--indigo);
+    display:grid; grid-template-columns:1fr auto; gap:12px 30px; align-items:center; padding:22px 30px; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:12.5px; letter-spacing:.24em;
+    text-transform:uppercase; color:var(--indigo); font-weight:600; }
+  h1 { margin:.18em 0 .12em; font-size:clamp(26px,3.2vw,42px); font-weight:700; letter-spacing:-.018em;
+    text-wrap:balance; line-height:1.06; }
+  .byline { color:var(--ink-2); font-size:15.5px; }
+  .byline b { color:var(--ink); font-weight:600; }
+  .headside { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+  .badges { display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end; }
+  .pill { font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; padding:4px 10px;
+    border-radius:999px; border:1px solid var(--line-strong); color:var(--ink-2); background:var(--surface-2); }
+  .pill.b { color:var(--boom); border-color:var(--boom); background:var(--boom-wash); }
+  .pill.s { color:var(--spike); border-color:var(--spike); background:var(--spike-wash); }
+  .pill.d { color:var(--dromajo); border-color:var(--dromajo); background:var(--dromajo-wash); }
+  .repo { text-align:right; font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3); line-height:1.7; }
+  .repo .u { color:var(--indigo); font-weight:600; }
+  .thesis { grid-column:1 / -1; margin-top:4px; padding-top:14px; border-top:1px solid var(--line);
+    font-size:clamp(16px,1.7vw,22px); font-weight:600; color:var(--ink); }
+  .thesis b { color:var(--indigo); }
 
-  /* columns */
-  .cols { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; align-items:start; }
-  .col { display:flex; flex-direction:column; gap:12px; }
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:12px;
-    padding:16px 18px; }
-  h2 { margin:0 0 4px; font-size:12.5px; font-family:"IBM Plex Mono",monospace;
-    letter-spacing:.14em; text-transform:uppercase; color:var(--accent-ink); font-weight:600; }
-  h3 { margin:0 0 6px; font-size:16.5px; font-weight:600; letter-spacing:-.01em; }
-  p { margin:0 0 8px; font-size:13.5px; color:var(--ink-2); }
+  /* ---------- hero architecture band ---------- */
+  .hero { background:var(--surface); border:1px solid var(--line); border-top:5px solid var(--slate);
+    border-radius:16px; padding:16px 22px 14px; box-shadow:var(--shadow); }
+  .hero .hd { display:flex; align-items:baseline; gap:12px; margin-bottom:6px; }
+  .kicker { font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--slate); font-weight:600; }
+  .hero h2 { margin:0; font-size:19px; font-weight:700; letter-spacing:-.01em; }
+  .hero .sub { font-size:13px; color:var(--ink-3); }
+  .arch { width:100%; height:auto; display:block; }
+  svg text { font-family:"IBM Plex Mono",monospace; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px 18px; justify-content:center; margin-top:8px;
+    font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-2); }
+  .legend span { display:inline-flex; align-items:center; gap:7px; }
+  .sw { width:11px; height:11px; border-radius:3px; display:inline-block; }
+
+  /* ---------- 3 columns ---------- */
+  .cols { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:start; }
+  .col { display:flex; flex-direction:column; gap:16px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:17px 19px;
+    box-shadow:var(--shadow); }
+  .card.motiv { border-top:4px solid var(--indigo); }
+  .card.method { border-top:4px solid var(--teal); }
+  .card.result { border-top:4px solid var(--amber); }
+  .card.fp { border-top:4px solid var(--violet); }
+  h3.sec { margin:0 0 4px; font-size:12.5px; font-family:"IBM Plex Mono",monospace; letter-spacing:.14em;
+    text-transform:uppercase; font-weight:600; }
+  .motiv h3.sec { color:var(--indigo); } .method h3.sec { color:var(--teal); }
+  .result h3.sec { color:var(--amber-ink); } .fp h3.sec { color:var(--violet); }
+  h4 { margin:0 0 6px; font-size:16px; font-weight:600; letter-spacing:-.01em; }
+  p { margin:0 0 8px; font-size:13px; color:var(--ink-2); }
   p:last-child { margin-bottom:0; }
-  .lead { color:var(--ink); }
-  ul { margin:4px 0 0; padding-left:18px; }
-  li { font-size:13px; color:var(--ink-2); margin-bottom:5px; }
+  p .hl { color:var(--ink); font-weight:600; }
+  ul { margin:4px 0 0; padding-left:17px; }
+  li { font-size:12.5px; color:var(--ink-2); margin-bottom:5px; }
   li b { color:var(--ink); font-weight:600; }
 
-  .qbox { background:var(--accent-wash); border:1px solid var(--accent); border-radius:10px;
-    padding:14px 16px; }
-  .qbox .q { font-size:15px; font-weight:600; color:var(--ink); }
-  .qbox .opts { font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--accent-ink);
-    margin-top:6px; }
+  /* four-way question chips */
+  .fourway { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:8px; }
+  .fw { border-radius:9px; padding:8px 10px; font-size:12px; font-weight:600; border:1px solid; line-height:1.25; }
+  .fw small { display:block; font-weight:500; font-size:10.5px; opacity:.85; margin-top:2px; }
+  .fw.r { color:var(--red); border-color:var(--red); background:var(--red-wash); }
+  .fw.a { color:var(--amber-ink); border-color:var(--amber); background:var(--amber-wash); }
+  .fw.g { color:var(--green); border-color:var(--green); background:var(--green-wash); }
+  .fw.s { color:var(--slate); border-color:var(--line-strong); background:var(--slate-wash); }
 
-  /* mini compare table */
   table { border-collapse:collapse; width:100%; font-size:12.5px; }
   th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); }
-  th { font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.06em;
-    text-transform:uppercase; color:var(--ink-3); font-weight:600; }
+  th { font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-3); font-weight:600; }
   tr:last-child td { border-bottom:none; }
   td.mono { font-family:"IBM Plex Mono",monospace; }
-  .found { color:var(--pass); font-weight:600; font-family:"IBM Plex Mono",monospace; font-size:12px; }
-  .notobs { color:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-size:12px; }
+
+  /* vote decision matrix */
+  .vmx { width:100%; border-collapse:separate; border-spacing:0 6px; }
+  .vmx td { border:none; padding:0; }
+  .vrow { display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px;
+    border-radius:10px; padding:9px 12px; border:1px solid; }
+  .vrow .pat { font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink); }
+  .vrow .vd { font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; white-space:nowrap; }
+  .vrow.g { background:var(--green-wash); border-color:var(--green); } .vrow.g .vd{ color:var(--green); }
+  .vrow.r { background:var(--red-wash); border-color:var(--red); } .vrow.r .vd{ color:var(--red); }
+  .vrow.a { background:var(--amber-wash); border-color:var(--amber); } .vrow.a .vd{ color:var(--amber-ink); }
+  .vrow.s { background:var(--slate-wash); border-color:var(--line-strong); } .vrow.s .vd{ color:var(--slate); }
 
   /* stat tiles */
-  .tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-  .tile { background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
-    padding:12px; text-align:center; }
-  .tile .v { font-family:"IBM Plex Mono",monospace; font-size:30px; font-weight:600;
-    letter-spacing:-.02em; line-height:1; }
-  .tile.g .v{ color:var(--pass); } .tile.a .v{ color:var(--accent); }
-  .tile .k { font-size:10.5px; color:var(--ink-2); margin-top:6px; line-height:1.3; }
+  .tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .tile { border-radius:11px; padding:12px 8px; text-align:center; border:1px solid var(--line);
+    background:var(--surface-2); }
+  .tile .v { font-family:"IBM Plex Mono",monospace; font-size:29px; font-weight:600; letter-spacing:-.02em; line-height:1; }
+  .tile .k { font-size:10px; color:var(--ink-2); margin-top:6px; line-height:1.28; }
+  .tile.g{ background:var(--green-wash); border-color:var(--green);} .tile.g .v{ color:var(--green);}
+  .tile.v2{ background:var(--violet-wash); border-color:var(--violet);} .tile.v2 .v{ color:var(--violet);}
+  .tile.a{ background:var(--amber-wash); border-color:var(--amber);} .tile.a .v{ color:var(--amber-ink);}
 
-  .finding { background:var(--pass-wash); border:1px solid var(--pass); border-left:5px solid var(--pass);
-    border-radius:10px; padding:14px 16px; }
-  .finding .tag { font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
-    color:var(--pass); letter-spacing:.05em; }
-  .snip { font-family:"IBM Plex Mono",monospace; font-size:11px; background:var(--surface);
-    border:1px solid var(--line); border-radius:7px; padding:8px 10px; margin-top:8px;
-    color:var(--ink); white-space:pre; overflow-x:auto; }
-
-  .diag { width:100%; height:auto; display:block; }
-  .diagcap { font-size:11.5px; color:var(--ink-3); margin-top:6px; text-align:center; }
-  svg text { font-family:"IBM Plex Mono",monospace; }
+  .finding { background:
+      linear-gradient(180deg, var(--green-wash), transparent 60%), var(--surface);
+    border:1px solid var(--green); border-left:5px solid var(--green); border-radius:11px; padding:13px 15px; }
+  .finding .tag { font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600; color:var(--green);
+    letter-spacing:.05em; }
+  .snip { font-family:"IBM Plex Mono",monospace; font-size:10.5px; background:var(--surface-2);
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; margin-top:9px; color:var(--ink);
+    white-space:pre; overflow-x:auto; line-height:1.5; }
+  .snip .c1{ color:var(--blue);} .snip .c2{ color:var(--red);} .snip .c3{ color:var(--green); font-weight:600;}
 
   .qr { display:flex; gap:14px; align-items:center; }
-  #qr { width:104px; height:104px; background:#fff; border:1px solid var(--line);
-    border-radius:8px; padding:6px; flex:none; }
-  #qr img, #qr canvas { display:block; width:100%!important; height:100%!important; }
-  .qr .t { font-size:12.5px; color:var(--ink-2); }
-  .qr .t .u { font-family:"IBM Plex Mono",monospace; color:var(--accent-ink); font-weight:600;
-    font-size:12px; word-break:break-all; }
+  #qr { width:108px; height:108px; background:#fff; border:1px solid var(--line); border-radius:9px; padding:6px; flex:none; }
+  #qr img,#qr canvas { display:block; width:100%!important; height:100%!important; }
+  .qr .t { font-size:12.5px; color:var(--ink-2); } .qr .t b{ color:var(--ink); }
+  .qr .t .u { font-family:"IBM Plex Mono",monospace; color:var(--indigo); font-weight:600; font-size:11.5px; word-break:break-all; }
 
   footer { display:flex; flex-wrap:wrap; gap:6px 20px; justify-content:center;
     font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3);
     border-top:1px solid var(--line); padding-top:12px; }
   footer b { color:var(--ink-2); font-weight:600; }
 
-  /* print: one landscape page, light, no shadows */
-  @page { size:A2 landscape; margin:8mm; }
+  @page { size:A1 landscape; margin:8mm; }
   @media print {
-    :root { --ground:#ffffff; }
+    :root { --ground:#ffffff; --shadow:none; }
     body { background:#fff; }
-    .poster { max-width:none; padding:0; }
-    .card,.banner,.tile { break-inside:avoid; }
+    .poster { max-width:none; padding:0; gap:12px; }
+    .card,.banner,.hero,.tile { break-inside:avoid; box-shadow:none; }
   }
-  @media (max-width:900px){ .cols{ grid-template-columns:1fr; } }
+  @media (max-width:1040px){ .cols{ grid-template-columns:1fr; } .banner{ grid-template-columns:1fr; } .headside{ align-items:flex-start; } }
 </style>
 
 <div class="poster">
 
-  <!-- HEADER -->
+  <!-- ================= BANNER ================= -->
   <header class="banner">
     <div>
       <div class="eyebrow">CHIA × A³ · MICRO 2026 A3 Workshop</div>
-      <h1>Finding BOOM CPU Bugs with an AI Loop and Two Reference Models</h1>
-      <div class="byline">Divya Kohli · University of California, Santa Cruz · dkohli1@ucsc.edu</div>
+      <h1>Finding BOOM CPU Bugs with an AI Loop<br>and Two Reference Models</h1>
+      <div class="byline"><b>Divya Kohli</b> · University of California, Santa Cruz · dkohli1@ucsc.edu</div>
     </div>
-    <div class="repo">
-      <div>open source</div>
-      <div class="u">github.com/Divya2030/<br>boom-triangulate</div>
-      <div>Spike · Dromajo · BOOM v3</div>
+    <div class="headside">
+      <div class="badges">
+        <span class="pill b">BOOM v3 · impl.</span>
+        <span class="pill s">Spike · oracle A</span>
+        <span class="pill d">Dromajo · oracle B</span>
+      </div>
+      <div class="repo">open source · MIT<br><span class="u">github.com/Divya2030/boom-triangulate</span></div>
     </div>
     <div class="thesis">The hard part isn't <i>finding</i> a difference between a CPU and a reference model —
-      it's <b>deciding what a difference means</b>.</div>
+      it's <b>deciding what that difference means</b>.</div>
   </header>
 
+  <!-- ================= HERO: SYSTEM ARCHITECTURE ================= -->
+  <section class="hero">
+    <div class="hd">
+      <span class="kicker">System overview</span>
+      <h2>One test program, three machines, one mechanical vote</h2>
+      <span class="sub">every model reduced to the same committed-state trace, then compared</span>
+    </div>
+
+    <svg class="arch" viewBox="0 0 1180 326" role="img" aria-label="System architecture: one ELF runs on BOOM, Spike and Dromajo; traces are normalized, compared pairwise, and voted into one of four verdicts">
+      <defs>
+        <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3.2" orient="auto">
+          <path d="M0,0 L7,3.2 L0,6.4 Z" fill="var(--ink-3)"/></marker>
+      </defs>
+
+      <!-- section labels -->
+      <text x="276" y="14" text-anchor="middle" font-size="10" fill="var(--boom)" font-weight="600">implementation under test</text>
+      <text x="276" y="322" text-anchor="middle" font-size="10" fill="var(--spike)" font-weight="600">two independent oracles</text>
+
+      <!-- ELF source -->
+      <rect x="16" y="137" width="106" height="54" rx="10" fill="var(--surface-2)" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="69" y="160" text-anchor="middle" font-size="12" fill="var(--ink)" font-weight="600">Test program</text>
+      <text x="69" y="176" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">one ELF</text>
+
+      <!-- ELF -> lanes -->
+      <line x1="122" y1="164" x2="174" y2="51"  stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+      <line x1="122" y1="164" x2="174" y2="164" stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+      <line x1="122" y1="164" x2="174" y2="277" stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+
+      <!-- BOOM lane -->
+      <rect x="176" y="24" width="202" height="54" rx="10" fill="var(--boom-wash)" stroke="var(--boom)" stroke-width="1.8"/>
+      <text x="277" y="46" text-anchor="middle" font-size="13" fill="var(--ink)" font-weight="700">BOOM v3</text>
+      <text x="277" y="63" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">RTL → Verilator sim</text>
+      <!-- Spike lane -->
+      <rect x="176" y="137" width="202" height="54" rx="10" fill="var(--spike-wash)" stroke="var(--spike)" stroke-width="1.8"/>
+      <text x="277" y="159" text-anchor="middle" font-size="13" fill="var(--ink)" font-weight="700">Spike</text>
+      <text x="277" y="176" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">ISA reference model</text>
+      <!-- Dromajo lane -->
+      <rect x="176" y="250" width="202" height="54" rx="10" fill="var(--dromajo-wash)" stroke="var(--dromajo)" stroke-width="1.8"/>
+      <text x="277" y="272" text-anchor="middle" font-size="13" fill="var(--ink)" font-weight="700">Dromajo</text>
+      <text x="277" y="289" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">ISA reference model</text>
+
+      <!-- lanes -> normalize -->
+      <text x="437" y="150" text-anchor="middle" font-size="9" fill="var(--ink-3)">commit</text>
+      <text x="437" y="161" text-anchor="middle" font-size="9" fill="var(--ink-3)">logs ×3</text>
+      <line x1="378" y1="51"  x2="470" y2="120" stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+      <line x1="378" y1="164" x2="470" y2="166" stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+      <line x1="378" y1="277" x2="470" y2="212" stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+
+      <!-- Normalize -->
+      <rect x="470" y="92" width="150" height="148" rx="10" fill="var(--slate-wash)" stroke="var(--slate)" stroke-width="1.6"/>
+      <text x="545" y="118" text-anchor="middle" font-size="12.5" fill="var(--ink)" font-weight="700">Normalize</text>
+      <text x="545" y="142" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">committed state:</text>
+      <text x="545" y="159" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">PC · insn bits</text>
+      <text x="545" y="176" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">register writes</text>
+      <text x="545" y="202" text-anchor="middle" font-size="9.5" fill="var(--ink-3)">state, not cycles</text>
+
+      <!-- normalize -> compare -->
+      <line x1="620" y1="166" x2="662" y2="166" stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+      <!-- Compare -->
+      <rect x="664" y="114" width="150" height="104" rx="10" fill="var(--surface-2)" stroke="var(--line-strong)" stroke-width="1.6"/>
+      <text x="739" y="138" text-anchor="middle" font-size="12" fill="var(--ink)" font-weight="700">Pairwise compare</text>
+      <text x="739" y="160" text-anchor="middle" font-size="10" fill="var(--spike)" font-weight="600">BOOM : Spike</text>
+      <text x="739" y="175" text-anchor="middle" font-size="10" fill="var(--dromajo)" font-weight="600">BOOM : Dromajo</text>
+      <text x="739" y="190" text-anchor="middle" font-size="10" fill="var(--ink-2)" font-weight="600">Spike : Dromajo</text>
+
+      <!-- compare -> vote -->
+      <line x1="814" y1="166" x2="850" y2="166" stroke="var(--ink-3)" stroke-width="1.4" marker-end="url(#ah)"/>
+      <!-- Vote diamond -->
+      <polygon points="900,122 954,166 900,210 846,166" fill="var(--amber-wash)" stroke="var(--amber)" stroke-width="2"/>
+      <text x="900" y="163" text-anchor="middle" font-size="13" fill="var(--amber-ink)" font-weight="700">VOTE</text>
+      <text x="900" y="179" text-anchor="middle" font-size="9" fill="var(--amber-ink)">majority</text>
+
+      <!-- vote -> verdicts -->
+      <line x1="954" y1="166" x2="980" y2="46"  stroke="var(--ink-3)" stroke-width="1.3" marker-end="url(#ah)"/>
+      <line x1="954" y1="166" x2="980" y2="112" stroke="var(--ink-3)" stroke-width="1.3" marker-end="url(#ah)"/>
+      <line x1="954" y1="166" x2="980" y2="180" stroke="var(--ink-3)" stroke-width="1.3" marker-end="url(#ah)"/>
+      <line x1="954" y1="166" x2="980" y2="248" stroke="var(--ink-3)" stroke-width="1.3" marker-end="url(#ah)"/>
+
+      <rect x="982" y="24"  width="184" height="46" rx="9" fill="var(--green-wash)"  stroke="var(--green)"  stroke-width="1.6"/>
+      <text x="1074" y="43" text-anchor="middle" font-size="12" fill="var(--green)" font-weight="700">CLEAN</text>
+      <text x="1074" y="58" text-anchor="middle" font-size="9.5" fill="var(--ink-2)">all three agree</text>
+
+      <rect x="982" y="90"  width="184" height="46" rx="9" fill="var(--red-wash)"    stroke="var(--red)"    stroke-width="1.6"/>
+      <text x="1074" y="109" text-anchor="middle" font-size="12" fill="var(--red)" font-weight="700">RTL_DEFECT</text>
+      <text x="1074" y="124" text-anchor="middle" font-size="9.5" fill="var(--ink-2)">oracles agree · BOOM differs</text>
+
+      <rect x="982" y="158" width="184" height="46" rx="9" fill="var(--amber-wash)"  stroke="var(--amber)"  stroke-width="1.6"/>
+      <text x="1074" y="177" text-anchor="middle" font-size="12" fill="var(--amber-ink)" font-weight="700">MODEL_DEFECT</text>
+      <text x="1074" y="192" text-anchor="middle" font-size="9.5" fill="var(--ink-2)">a lone oracle is the outlier</text>
+
+      <rect x="982" y="226" width="184" height="46" rx="9" fill="var(--slate-wash)"  stroke="var(--line-strong)" stroke-width="1.6"/>
+      <text x="1074" y="245" text-anchor="middle" font-size="12" fill="var(--slate)" font-weight="700">INCONCLUSIVE</text>
+      <text x="1074" y="260" text-anchor="middle" font-size="9.5" fill="var(--ink-2)">the two oracles split</text>
+    </svg>
+
+    <div class="legend">
+      <span><i class="sw" style="background:var(--boom)"></i> BOOM — implementation</span>
+      <span><i class="sw" style="background:var(--spike)"></i> Spike — oracle A</span>
+      <span><i class="sw" style="background:var(--dromajo)"></i> Dromajo — oracle B</span>
+      <span><i class="sw" style="background:var(--amber)"></i> vote</span>
+      <span><i class="sw" style="background:var(--green)"></i> clean</span>
+      <span><i class="sw" style="background:var(--red)"></i> RTL bug</span>
+      <span><i class="sw" style="background:var(--slate)"></i> mismatch</span>
+    </div>
+  </section>
+
+  <!-- ================= THREE COLUMNS ================= -->
   <div class="cols">
 
-    <!-- COLUMN 1: PROBLEM -->
+    <!-- COLUMN 1 — MOTIVATION -->
     <div class="col">
-      <div class="card">
-        <h2>The problem</h2>
-        <p class="lead">Comparing a real CPU against a reference model is a standard way to find
-        bugs. Chipyard already runs Spike next to BOOM, so <i>running</i> the comparison is easy.</p>
-        <p>The hard part is choosing what to test — and, when BOOM and a reference disagree,
-        deciding what the disagreement actually is.</p>
-      </div>
-
-      <div class="card">
-        <h2>The core question</h2>
-        <div class="qbox">
-          <div class="q">A difference can be four different things:</div>
-          <div class="opts">RTL bug · reference-model bug · allowed difference · test artifact</div>
+      <div class="card motiv">
+        <h3 class="sec">The problem</h3>
+        <h4>Running the comparison is easy. Reading it is not.</h4>
+        <p>Comparing a real CPU against a reference model is a standard way to find bugs, and Chipyard
+        already runs Spike next to BOOM. The unsolved part is choosing <span class="hl">what</span> to test
+        and, when they disagree, deciding <span class="hl">what the disagreement is</span>.</p>
+        <p>A single difference has four very different meanings:</p>
+        <div class="fourway">
+          <div class="fw r">RTL bug<small>fault in BOOM</small></div>
+          <div class="fw a">reference bug<small>fault in an oracle</small></div>
+          <div class="fw g">allowed<small>spec permits it</small></div>
+          <div class="fw s">test artifact<small>harness / setup</small></div>
         </div>
-        <p style="margin-top:12px">Prior fuzzers are strong at <i>finding</i> differences. We focus
-        on the less-studied step: <b style="color:var(--ink)">classifying</b> them.</p>
       </div>
 
-      <div class="card">
-        <h2>Where we sit vs. prior work</h2>
+      <div class="card motiv">
+        <h3 class="sec">Where we sit vs. prior work</h3>
         <table>
           <thead><tr><th>Work</th><th>Strength</th></tr></thead>
           <tbody>
             <tr><td class="mono">DIFUZZRTL</td><td>coverage-guided discovery</td></tr>
             <tr><td class="mono">ProcessorFuzz</td><td>CSR-guided, Rocket/BOOM</td></tr>
             <tr><td class="mono">SimFuzz '26</td><td>14 new bugs, 7 CVEs</td></tr>
-            <tr><td class="mono" style="color:var(--accent-ink)">ours</td><td><b>classification via a 2-oracle vote</b></td></tr>
+            <tr><td class="mono" style="color:var(--indigo);font-weight:600">this work</td>
+                <td><b>classification via a two-oracle vote</b></td></tr>
           </tbody>
         </table>
-        <p style="margin-top:10px;font-size:12.5px">We don't compete on raw discovery or throughput.</p>
-      </div>
-    </div>
-
-    <!-- COLUMN 2: APPROACH -->
-    <div class="col">
-      <div class="card">
-        <h2>The loop — five CHIA blocks</h2>
-        <svg class="diag" viewBox="0 0 520 132" role="img" aria-label="Five-block pipeline">
-          <defs><marker id="ar" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" fill="var(--ink-3)"/></marker></defs>
-          <!-- 5 blocks -->
-          <g font-size="10" text-anchor="middle">
-            <g>
-              <rect x="4" y="34" width="92" height="52" rx="8" fill="var(--accent-wash)" stroke="var(--accent)"/>
-              <text x="50" y="55" fill="var(--ink)" font-weight="600">1 · pick</text>
-              <text x="50" y="69" fill="var(--ink-2)">spots (RTL)</text>
-            </g>
-            <line x1="98" y1="60" x2="112" y2="60" stroke="var(--ink-3)" marker-end="url(#ar)"/>
-            <g>
-              <rect x="114" y="34" width="92" height="52" rx="8" fill="var(--surface-2)" stroke="var(--line-strong)"/>
-              <text x="160" y="55" fill="var(--ink)" font-weight="600">2 · write</text>
-              <text x="160" y="69" fill="var(--ink-2)">tests + gate</text>
-            </g>
-            <line x1="208" y1="60" x2="222" y2="60" stroke="var(--ink-3)" marker-end="url(#ar)"/>
-            <g>
-              <rect x="224" y="34" width="92" height="52" rx="8" fill="var(--surface-2)" stroke="var(--line-strong)"/>
-              <text x="270" y="52" fill="var(--ink)" font-weight="600">3 · run</text>
-              <text x="270" y="66" fill="var(--ink-2)">BOOM+Spike</text>
-              <text x="270" y="78" fill="var(--ink-2)">+Dromajo</text>
-            </g>
-            <line x1="318" y1="60" x2="332" y2="60" stroke="var(--ink-3)" marker-end="url(#ar)"/>
-            <g>
-              <rect x="334" y="34" width="92" height="52" rx="8" fill="var(--accent-wash)" stroke="var(--accent)"/>
-              <text x="380" y="52" fill="var(--ink)" font-weight="600">4 · vote</text>
-              <text x="380" y="66" fill="var(--ink-2)">&amp; classify</text>
-            </g>
-            <line x1="428" y1="60" x2="442" y2="60" stroke="var(--ink-3)" marker-end="url(#ar)"/>
-            <g>
-              <rect x="444" y="34" width="72" height="52" rx="8" fill="var(--surface-2)" stroke="var(--line-strong)"/>
-              <text x="480" y="55" fill="var(--ink)" font-weight="600">5 · measure</text>
-              <text x="480" y="69" fill="var(--ink-2)">planted</text>
-            </g>
-          </g>
-          <text x="50" y="20" text-anchor="middle" font-size="9" fill="var(--ink-3)">423 seams, file:line</text>
-          <text x="380" y="112" text-anchor="middle" font-size="9" fill="var(--ink-3)">no model call for the easy cases</text>
-        </svg>
+        <p style="margin-top:9px;font-size:12px">Prior fuzzers are strong at <i>finding</i> differences; we
+        focus on the less-studied step of <span class="hl">classifying</span> them. We do not compete on raw
+        discovery or throughput.</p>
       </div>
 
-      <div class="card">
-        <h2>The idea — triangulate two references</h2>
-        <svg class="diag" viewBox="0 0 520 300" role="img" aria-label="Triangulation vote">
-          <!-- triangle edges (top vertex to two lower vertices, and the base) -->
-          <line x1="260" y1="42" x2="96" y2="150" stroke="var(--line-strong)" stroke-width="1.5"/>
-          <line x1="260" y1="42" x2="424" y2="150" stroke="var(--line-strong)" stroke-width="1.5"/>
-          <line x1="96" y1="150" x2="424" y2="150" stroke="var(--line-strong)" stroke-width="1.5"/>
-          <!-- nodes -->
-          <g text-anchor="middle" font-size="12" font-weight="600">
-            <circle cx="260" cy="42" r="30" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.5"/>
-            <text x="260" y="40" fill="var(--ink)">BOOM</text>
-            <text x="260" y="53" fill="var(--ink-2)" font-size="9">impl.</text>
-            <circle cx="96" cy="150" r="30" fill="var(--surface-2)" stroke="var(--line-strong)" stroke-width="1.5"/>
-            <text x="96" y="148" fill="var(--ink)">Spike</text>
-            <text x="96" y="161" fill="var(--ink-2)" font-size="9">oracle A</text>
-            <circle cx="424" cy="150" r="30" fill="var(--surface-2)" stroke="var(--line-strong)" stroke-width="1.5"/>
-            <text x="424" y="148" fill="var(--ink)">Dromajo</text>
-            <text x="424" y="161" fill="var(--ink-2)" font-size="9">oracle B</text>
-          </g>
-          <!-- rules: clearly below the triangle, no crossing lines -->
-          <g font-size="12.5" text-anchor="middle" font-weight="600">
-            <text x="260" y="212" fill="var(--pass)">A = B = BOOM  →  clean</text>
-            <text x="260" y="235" fill="var(--crit)">A = B, BOOM differs  →  RTL bug</text>
-            <text x="260" y="258" fill="var(--warn)">BOOM = one, other differs  →  oracle bug</text>
-            <text x="260" y="281" fill="var(--ink-2)">A ≠ B  →  oracle mismatch</text>
-          </g>
-        </svg>
-        <p class="diagcap">Two references turn “which side is wrong?” into a mechanical vote (committed
-        state only). <b style="color:var(--ink)">Demonstrated both ways:</b> a seeded RTL bug → BOOM is the
-        outlier; a seeded Spike bug → the vote pinpoints Spike. A single golden model cannot do the second.</p>
-      </div>
-
-      <div class="card">
-        <h2>Honesty built in</h2>
+      <div class="card motiv">
+        <h3 class="sec">Honesty built in</h3>
         <ul>
-          <li><b>Mechanical rules first</b> — cheap cases settled before any model call.</li>
-          <li><b>High bar for “RTL bug”</b> — unsure ⇒ not sure, never rounded up.</li>
-          <li><b>Provenance</b> on every verdict; integrity check on every mutant binary.</li>
+          <li><b>Mechanical rules first</b> — the easy cases are settled before any model call.</li>
+          <li><b>High bar for “RTL bug”</b> — unsure means unsure, never rounded up.</li>
+          <li><b>Provenance</b> on every verdict; an integrity check on every mutant binary.</li>
         </ul>
       </div>
     </div>
 
-    <!-- COLUMN 3: RESULTS -->
+    <!-- COLUMN 2 — METHOD -->
     <div class="col">
-      <div class="card">
-        <h2>Planted-bug study</h2>
+      <div class="card method">
+        <h3 class="sec">The decision — a two-oracle vote</h3>
+        <h4>Two references turn “which side is wrong?” into a vote</h4>
+        <table class="vmx"><tbody>
+          <tr><td><div class="vrow g"><span class="pat">BOOM = Spike = Dromajo</span><span class="vd">CLEAN</span></div></td></tr>
+          <tr><td><div class="vrow r"><span class="pat">Spike = Dromajo &nbsp;≠&nbsp; BOOM</span><span class="vd">RTL_DEFECT</span></div></td></tr>
+          <tr><td><div class="vrow a"><span class="pat">BOOM = one &nbsp;≠&nbsp; other oracle</span><span class="vd">MODEL_DEFECT</span></div></td></tr>
+          <tr><td><div class="vrow s"><span class="pat">Spike ≠ Dromajo, BOOM matches neither</span><span class="vd">INCONCLUSIVE</span></div></td></tr>
+        </tbody></table>
+        <p style="margin-top:10px">Comparison is on <span class="hl">committed architectural state only</span>
+        — retired PC, instruction bits, register writes — so the vote is mechanical, not a judgement call.</p>
+      </div>
+
+      <div class="card method">
+        <h3 class="sec">Proven in both directions</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="border:1px solid var(--red);background:var(--red-wash);border-radius:10px;padding:11px 12px">
+            <div class="mono" style="font-size:10.5px;font-weight:600;color:var(--red)">SEEDED RTL BUG</div>
+            <p style="margin:5px 0 0;font-size:12px">Oracles agree, BOOM is the sole outlier →
+            <b class="mono" style="color:var(--red)">RTL_DEFECT</b>.</p>
+          </div>
+          <div style="border:1px solid var(--amber);background:var(--amber-wash);border-radius:10px;padding:11px 12px">
+            <div class="mono" style="font-size:10.5px;font-weight:600;color:var(--amber-ink)">SEEDED SPIKE BUG</div>
+            <p style="margin:5px 0 0;font-size:12px">BOOM + Dromajo agree, Spike stands alone → the vote
+            <b>names Spike</b>.</p>
+          </div>
+        </div>
+        <p style="margin-top:10px;font-size:12px">A single golden-model flow cannot make the second call — it
+        sees a mismatch but cannot tell whether the CPU or the reference is wrong.</p>
+      </div>
+
+      <div class="card method">
+        <h3 class="sec">The loop — reusable CHIA blocks</h3>
+        <p style="font-size:12.5px"><b class="mono" style="color:var(--teal)">1 hypothesize</b> reads BOOM's RTL
+        and ranks 400+ seams by file·line · <b class="mono" style="color:var(--teal)">2 generate</b> writes
+        RISC-V tests aimed at them, behind a build/finish/work gate ·
+        <b class="mono" style="color:var(--teal)">3 triage</b> runs the co-sim and votes. Each block is a
+        standalone, reusable CHIA block.</p>
+      </div>
+    </div>
+
+    <!-- COLUMN 3 — RESULTS -->
+    <div class="col">
+      <div class="card result">
+        <h3 class="sec">Planted-bug study</h3>
         <div class="tiles">
           <div class="tile g"><div class="v">8/8</div><div class="k">recall over observable bugs</div></div>
-          <div class="tile g"><div class="v">100%</div><div class="k">precision</div></div>
+          <div class="tile g"><div class="v">100%</div><div class="k">triage precision</div></div>
           <div class="tile a"><div class="v">0</div><div class="k">false alarms on clean build</div></div>
         </div>
-        <table style="margin-top:12px">
-          <tbody>
-            <tr><td class="mono">bypass rs1/rs2 (disable, wrong-match, zero-guard)</td><td class="found">6 found</td></tr>
-            <tr><td class="mono">store→load forwarding (2)</td><td class="found">2 found</td></tr>
-            <tr><td class="mono">memory-ordering / register-move (3)</td><td class="notobs">not observable*</td></tr>
-          </tbody>
-        </table>
-        <p style="margin-top:8px;font-size:11.5px">*never change committed state on one core — excluded from recall, not counted as misses.</p>
+        <table style="margin-top:11px"><tbody>
+          <tr><td class="mono">bypass rs1/rs2 — disable · wrong-match · zero-guard</td>
+              <td style="color:var(--green);font-weight:600;text-align:right" class="mono">6 found</td></tr>
+          <tr><td class="mono">store→load forwarding</td>
+              <td style="color:var(--green);font-weight:600;text-align:right" class="mono">2 found</td></tr>
+          <tr><td class="mono">mem-ordering · register-move</td>
+              <td style="color:var(--ink-3);text-align:right" class="mono">3 not obs.*</td></tr>
+        </tbody></table>
+        <p style="margin-top:8px;font-size:11px">*never change committed state on one core — excluded from
+        recall, not counted as misses.</p>
       </div>
 
-      <div class="card" style="padding-bottom:14px">
-        <h2>Key result</h2>
+      <div class="card result" style="border-top-color:var(--green)">
+        <h3 class="sec" style="color:var(--green)">Key result</h3>
         <div class="finding">
-          <span class="tag">THE SECOND REFERENCE CAUGHT A BUG THE FIRST MISSED</span>
-          <h3 style="margin-top:6px">Vote beats single-oracle triage</h3>
-          <p style="color:var(--ink-2)">A forwarding bug derailed the program, so one reference read it
-          as a broken test. Both references agree, BOOM is the outlier → <b style="color:var(--ink)">RTL bug</b>.</p>
-          <div class="snip">Spike   : … handler entry
-BOOM    : ecall retired (no write)  ← derailed
-vote    : oracles agree · BOOM outlier → RTL_DEFECT</div>
+          <div class="tag">THE SECOND REFERENCE CAUGHT A BUG THE FIRST MISSED</div>
+          <h4 style="margin:5px 0 2px">Vote beats single-oracle triage</h4>
+          <p style="font-size:12px">A forwarding bug derailed the program, so one reference read the cut-off
+          trace as a broken test. Both oracles finish and agree; BOOM is the outlier →
+          <span class="hl">RTL bug</span>, no matter how the difference looks.</p>
+          <div class="snip"><span class="c1">Spike  </span>: … handler entry
+<span class="c2">BOOM   </span>: ecall retired (no write)  ← derailed
+<span class="c3">vote   </span>: oracles agree · BOOM outlier → RTL_DEFECT</div>
         </div>
       </div>
 
-      <div class="card">
-        <h2>Honest limits</h2>
+      <div class="card fp">
+        <h3 class="sec">Random-program campaigns</h3>
+        <div class="tiles">
+          <div class="tile"><div class="v" style="color:var(--violet)">200</div><div class="k">RV64IM programs — all clean</div></div>
+          <div class="tile v2"><div class="v">80</div><div class="k">RV64IMFD programs — all clean</div></div>
+          <div class="tile"><div class="v">0</div><div class="k">divergences over ~8k FP insns</div></div>
+        </div>
+        <p style="margin-top:10px;font-size:12px">The floating-point generator targets the hard seams —
+        <span class="hl">NaN-boxing, min/max with NaN, saturating float→int, signed zero, all five rounding
+        modes</span>. Results are forced into the integer file so all three models compare identically.</p>
+        <p style="font-size:12px">Two would-be RTL bugs were traced to <span class="hl">uninitialized FP
+        control state</span> (exception flags, then rounding mode) in the test setup — not BOOM. The triage
+        rejected both: <i>a vote proposes, the exact instruction disposes.</i></p>
+      </div>
+
+      <div class="card result" style="border-top-color:var(--slate)">
+        <h3 class="sec" style="color:var(--slate)">Honest limits</h3>
         <ul>
-          <li>Planted bugs prove the method; <b>no new organic BOOM bug</b> found.</li>
-          <li>Single-core bare-metal can't reach SimFuzz-class discovery.</li>
-          <li>No <b>natural</b> reference-model bug seen; we demonstrate detection with a <b>seeded</b> one.</li>
-          <li>A documented BOOM bug (misaligned load) <b>didn't reproduce</b>; the loop kept BOOM clear.</li>
+          <li>Planted bugs prove the method; <b>no new organic BOOM bug</b> found on this harness.</li>
+          <li>Single-core bare-metal can't reach the VM / privilege / multi-core states where documented bugs live — the gap is <b>reach, not detection</b>.</li>
+          <li>No <b>natural</b> reference-model bug seen; the tie-break is shown with a <b>seeded</b> one.</li>
         </ul>
       </div>
 
-      <div class="card">
+      <div class="card result" style="border-top-color:var(--indigo)">
         <div class="qr">
-          <div id="qr" aria-label="QR code to repository"></div>
-          <div class="t">Loop, tests, results &amp; paper —<br>
+          <div id="qr" aria-label="QR code to the repository"></div>
+          <div class="t"><b>Loop, tests, results &amp; paper</b><br>
             <span class="u">github.com/Divya2030/boom-triangulate</span><br>
-            <span style="color:var(--ink-3)">reusable CHIA blocks · MIT</span></div>
+            <span style="color:var(--ink-3)">reusable CHIA blocks · MIT license</span></div>
         </div>
       </div>
     </div>
@@ -326,7 +475,7 @@ vote    : oracles agree · BOOM outlier → RTL_DEFECT</div>
   <footer>
     <span><b>Spike</b> 1.1.1-dev</span><span><b>Dromajo</b> ref model</span>
     <span><b>Chipyard</b> BOOM v3</span><span><b>Verilator</b> 5.022</span>
-    <span><b>loop</b> ~4k LoC Python</span><span><b>tests</b> 58 passing</span>
+    <span><b>loop</b> ~4k LoC Python</span><span><b>tests</b> 60 passing</span>
   </footer>
 </div>
 
@@ -335,11 +484,10 @@ vote    : oracles agree · BOOM outlier → RTL_DEFECT</div>
     try {
       new QRCode(document.getElementById("qr"), {
         text: "https://github.com/Divya2030/boom-triangulate",
-        width: 92, height: 92, correctLevel: QRCode.CorrectLevel.M
+        width: 96, height: 96, correctLevel: QRCode.CorrectLevel.M
       });
     } catch (e) {
-      var el = document.getElementById("qr");
-      if (el) { el.style.display = "none"; }
+      var el = document.getElementById("qr"); if (el) el.style.display = "none";
     }
   })();
 </script>
