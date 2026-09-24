@@ -7,7 +7,8 @@ something different, that may be a bug.
 
 Built for the A3 × CHIA hackathon (MICRO 2026 A3 Workshop).
 
-**Live results dashboard:** https://jocular-boba-d980f9.netlify.app/
+**Live results dashboard:** https://boom-divergence-hunter.netlify.app/
+· **poster:** https://boom-triangulate-poster.netlify.app/
 
 ## The idea
 
